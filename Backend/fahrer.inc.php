@@ -1,7 +1,8 @@
 <?php
-// Autor: Steffen Waldvogel
+// Autor: Sebastian Rieg
 
 // Speichert oder ändert einen Fahrer; gibt die MitarbeiterID zurück
+// Wenn Mitarbeiter ID bereits im Team vorhanden ist, wird aktualisiert, ansonsten neu angelegt
 function fahrerSpeichern($verbindung, $mitarbeiterID, $teamname, $vorname, $nachname, $ort, $plz, $strasse, $hausnr, $isNeu)
 {
     if ($isNeu) {

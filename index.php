@@ -2,14 +2,30 @@
 //Includes Einfügen
 <?php
 include 'includes/db.inc.php';
+include 'includes/team.inc.php';
+include 'includes/fahrer.inc.php';
+//Sessions
 session_start();
 
-//Sessions
+// Eingabevalidierung und Teamregistrierung
+$fehler = "";
+$erfolg = "";
 
-//Erfolgsprüfung
-
-
-
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $teamname = trim($_POST['teamname']);
+    $vorname = trim($_POST['teamchef_vorname']);
+    $nachname = trim($_POST['teamchef_nachname']);
+    $loginname = trim($_POST['teamchef_login']);
+    $kennwort = $_POST['teamchef_kennwort'];
+    if (empty($teamname) || empty($vorname) || empty($nachname) || empty($loginname) || empty($kennwort)) {
+        $fehler = "Bitte alle Felder ausfüllen.";
+    } elseif (teamExistiert($verbindung, $teamname)) {
+        $fehler = "Ein Team mit diesem Namen existiert bereits.";
+    } else {
+        teamEintragen($verbindung, $teamname, $vorname, $nachname, $loginname, $kennwort);
+        $erfolg = "Team wurde erfolgreich angelegt!";
+    }
+}
 ?>
 
 <!DOCTYPE html>

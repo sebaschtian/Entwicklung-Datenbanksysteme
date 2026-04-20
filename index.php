@@ -18,7 +18,8 @@ $fehler = "";
 $erfolg = "";
 
 // Fügt Namen in Variablen ein damit sie in include dann per SQL Befehl ausgeführt werden können 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Schaut ob es eine POST Anfrage ist && ob der Button "team_anlegen" gedrückt wurde, damit die Funktion teamEintragen() nur dann ausgeführt wird, wenn das Formular abgeschickt wird.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['team_anlegen'] === 'team') {
     $teamname = trim($_POST['teamname']);
     $nameteamchef = trim($_POST['nameteamchef']);
     $loginname = trim($_POST['teamchef_login']);
@@ -65,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <label for="teamchef_kennwort">Kennwort: 
             <input type="password" id="teamchef_kennwort" name="teamchef_kennwort" required></label>
             <br>
-            <input type="submit" value="Team anlegen">
+            <input type="submit" name="team_anlegen" value="Team anlegen">
         </form>
     <?php endif; ?>
 

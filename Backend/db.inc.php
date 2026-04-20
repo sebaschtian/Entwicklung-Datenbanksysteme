@@ -1,3 +1,5 @@
+//Autor: Sebastian Rieg
+
 <?php
 $servername = "localhost";
 $username = "root";

@@ -1,3 +1,15 @@
+//Autor: Sebastian Rieg
+//Includes Einfügen
+<?php
+include 'includes/db.inc.php';
+session_start();
+
+//Erfolgsprüfung
+
+
+
+?>
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -8,7 +20,7 @@
     <h1>Startseite</h1>
 
     <h2>Anlegen eines Teams</h2>
-    <form action="teamchef.php" method="post"> //Wenn Registreirung erfolgreich, dann weiter zu Teamchef.php
+    <form action="teamchef.php" method="post"> //Wenn Registrierung erfolgreich, dann weiter zu Teamchef.php
         <label for="teamname">Teamname: 
         <input type="text" id="teamname" name="teamname" value="<?= isset($_POST['teamname']) ? htmlspecialchars($_POST['teamname']) : '' ?>" required></label>
 
@@ -57,4 +69,4 @@
     </form>
 
 </body>
-</html>
+</htm

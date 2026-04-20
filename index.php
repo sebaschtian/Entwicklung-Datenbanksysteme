@@ -4,6 +4,8 @@
 include 'includes/db.inc.php';
 session_start();
 
+//Sessions
+
 //Erfolgsprüfung
 
 

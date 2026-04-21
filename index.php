@@ -3,7 +3,7 @@
 <?php
 include 'includes/db.inc.php';
 include 'includes/team.inc.php';
-//include 'includes/fahrer.inc.php';
+include 'includes/fahrer.inc.php';
 //Sessions
 $abgemeldet = false;
 if (isset($_GET['logout'])) {
@@ -11,7 +11,6 @@ if (isset($_GET['logout'])) {
     session_destroy();
     $abgemeldet = true;
 }
-session_start();
 
 // Eingabevalidierung und Teamregistrierung
 $fehler = "";
@@ -31,6 +30,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['team_anlegen'] === 'team') 
     } else {
         teamEintragen($verbindung, $teamname, $nameteamchef, $loginname, $kennwort);
         $erfolg = "Team wurde erfolgreich angelegt!";
+    }
+}
+
+// Login Teamchef
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $loginname = trim($_POST['loginname']);
+    $kennwort = $_POST['kennwort'];
+
+    $stmt = $verbindung->prepare(
+        "SELECT LoginName, KennwortTeamchef, Teamname, Vorname, Nachname 
+         FROM Teamchef WHERE LoginName = ?"
+    );
+    $stmt->execute([$loginname]);
+    $teamchef = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($teamchef && password_verify($kennwort, $teamchef['KennwortTeamchef'])) {
+        $_SESSION['teamchef_login'] = $teamchef['LoginName'];
+        $_SESSION['teamchef_teamname'] = $teamchef['Teamname'];
+        $_SESSION['teamchef_name'] = $teamchef['Vorname'] . ' ' . $teamchef['Nachname'];
+        header('Location: teamchef/dashboard.php');
+        exit;
+    } else {
+        $fehler = "Loginname oder Kennwort falsch.";
+    }
+}
+
+// Login Rennveranstalter
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = trim($_POST['name']);
+    $kennwort = $_POST['kennwort'];
+
+    $stmt = $verbindung->prepare(
+        "SELECT Name, Kennwort FROM Rennveranstalter WHERE Name = ?"
+    );
+    $stmt->execute([$name]);
+    $veranstalter = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($veranstalter && password_verify($kennwort, $veranstalter['Kennwort'])) {
+        $_SESSION['veranstalter_name'] = $veranstalter['Name'];
+        header('Location: versanstalter/dashboard.php');
+        exit;
+    } else {
+        $fehler = "Name oder Kennwort falsch.";
+    }
+}
+
+// Registrierung Rennveranstalter
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = trim($_POST['name']);
+    $kennwort = $_POST['kennwort'];
+
+    if (empty($name) || empty($kennwort)) {
+        $fehler = "Bitte alle Felder ausfüllen.";
+    } else {
+        // Prüfen ob Name bereits existiert
+        $stmt = $verbindung->prepare("SELECT Name FROM Rennveranstalter WHERE Name = ?");
+        $stmt->execute([$name]);
+
+        if ($stmt->rowCount() > 0) {
+            $fehler = "Ein Rennveranstalter mit diesem Namen existiert bereits.";
+        } else {
+            $kennwort_hash = password_hash($kennwort, PASSWORD_DEFAULT);
+            $stmt = $verbindung->prepare(
+                "INSERT INTO Rennveranstalter (Name, Kennwort) VALUES (?, ?)"
+            );
+            $stmt->execute([$name, $kennwort_hash]);
+            $erfolg = "Registrierung erfolgreich! Sie können sich jetzt anmelden.";
+        }
     }
 }
 ?>
@@ -90,8 +157,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['team_anlegen'] === 'team') 
     </form>
 
     <h2>Registrierung Rennveranstalter</h2>
+        <?php if ($fehler): ?>
+        <p style="color:red;"><?= htmlspecialchars($fehler) ?></p>
+    <?php endif; ?>
+
+    <?php if ($erfolg): ?>
+        <p style="color:green;"><?= htmlspecialchars($erfolg) ?></p>
+        <a href="veranstalter_login.php">Zum Login</a>
+    <?php else: ?>
     <form method="post" action="Rennveranstalter.php">
         <label for="name">Name: 
         <input type="text" id="name" name="name" value="<?= isset($_POST['name']) ? htmlspecialchars($_POST['name']) : '' ?>" required></label>
         <br>
-        <label for="kennwort">Kennwort: <input type="password" id="kennwort" name="k
+        <label for="kennwort">Kennwort: <input type="password" id="kennwort" name="kennwort" required></label>
+        <br>
+        <input type="submit" value="Registrieren">
+        </form>
+    <?php endif; ?>

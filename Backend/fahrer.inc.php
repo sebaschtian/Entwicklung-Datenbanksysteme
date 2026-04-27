@@ -1,60 +1,59 @@
 <?php
 // Autor: Sebastian Rieg
 
-// Speichert oder ändert einen Fahrer; gibt die MitarbeiterID zurück
-// Wenn Mitarbeiter ID bereits im Team vorhanden ist, wird aktualisiert, ansonsten neu angelegt
-function fahrerSpeichern($verbindung, $mitarbeiterID, $teamname, $vorname, $nachname, $ort, $plz, $strasse, $hausnr, $isNeu)
+// Speichert oder ändert einen Fahrer; gibt die FahrerID zurück
+function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu)
 {
     if ($isNeu) {
         $stmt = $verbindung->prepare(
-            "INSERT INTO Fahrer (Vorname, Nachname, Ort, PLZ, Strasse, HausNr, Teamname)
-             VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO Fahrer (FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)
+             VALUES (?, ?, ?, ?, ?)"
         );
-        $stmt->execute([$vorname, $nachname, $ort, $plz, $strasse, $hausnr, $teamname]);
+        $stmt->execute([$fahrerName, $ortName, $plz, $strasseHausnummer, $teamName]);
         return (int) $verbindung->lastInsertId();
     } else {
         $stmt = $verbindung->prepare(
-            "UPDATE Fahrer SET Vorname = ?, Nachname = ?, Ort = ?, PLZ = ?, Strasse = ?, HausNr = ?
-             WHERE MitarbeiterID = ? AND Teamname = ?"
+            "UPDATE Fahrer SET FahrerName = ?, OrtName = ?, PLZ = ?, StrasseHausnummer = ?
+             WHERE FahrerID = ? AND TeamName = ?"
         );
-        $stmt->execute([$vorname, $nachname, $ort, $plz, $strasse, $hausnr, $mitarbeiterID, $teamname]);
-        return $mitarbeiterID;
+        $stmt->execute([$fahrerName, $ortName, $plz, $strasseHausnummer, $fahrerID, $teamName]);
+        return $fahrerID;
     }
 }
 
-function fahrerLaden($verbindung, $teamname)
+function fahrerLaden($verbindung, $teamName)
 {
     $stmt = $verbindung->prepare(
-        "SELECT MitarbeiterID, Vorname, Nachname, Ort, PLZ, Strasse, HausNr 
-         FROM Fahrer WHERE Teamname = ? ORDER BY Nachname, Vorname"
+        "SELECT FahrerID, FahrerName, OrtName, PLZ, StrasseHausnummer
+         FROM Fahrer WHERE TeamName = ? ORDER BY FahrerName"
     );
-    $stmt->execute([$teamname]);
+    $stmt->execute([$teamName]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function fahrerLadenEinzeln($verbindung, $mitarbeiterID, $teamname)
+function fahrerLadenEinzeln($verbindung, $fahrerID, $teamName)
 {
     $stmt = $verbindung->prepare(
-        "SELECT MitarbeiterID, Vorname, Nachname, Ort, PLZ, Strasse, HausNr 
-         FROM Fahrer WHERE MitarbeiterID = ? AND Teamname = ?"
+        "SELECT FahrerID, FahrerName, OrtName, PLZ, StrasseHausnummer
+         FROM Fahrer WHERE FahrerID = ? AND TeamName = ?"
     );
-    $stmt->execute([$mitarbeiterID, $teamname]);
+    $stmt->execute([$fahrerID, $teamName]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function fahrerLoeschen($verbindung, $mitarbeiterID, $teamname)
+function fahrerLoeschen($verbindung, $fahrerID, $teamName)
 {
     $verbindung->beginTransaction();
     try {
         $stmt = $verbindung->prepare(
-            "DELETE FROM Telefonnummern WHERE MitarbeiterID = ? AND Teamname = ?"
+            "DELETE FROM Telefonnummer WHERE FahrerID = ? AND TeamName = ?"
         );
-        $stmt->execute([$mitarbeiterID, $teamname]);
+        $stmt->execute([$fahrerID, $teamName]);
 
         $stmt = $verbindung->prepare(
-            "DELETE FROM Fahrer WHERE MitarbeiterID = ? AND Teamname = ?"
+            "DELETE FROM Fahrer WHERE FahrerID = ? AND TeamName = ?"
         );
-        $stmt->execute([$mitarbeiterID, $teamname]);
+        $stmt->execute([$fahrerID, $teamName]);
 
         $verbindung->commit();
     } catch (Exception $e) {
@@ -63,32 +62,30 @@ function fahrerLoeschen($verbindung, $mitarbeiterID, $teamname)
     }
 }
 
-// Telefonnummern eines Fahrers laden
-function telefonnummernLaden($verbindung, $mitarbeiterID, $teamname)
+function telefonnummernLaden($verbindung, $fahrerID, $teamName)
 {
     $stmt = $verbindung->prepare(
-        "SELECT Telefonnummer FROM Telefonnummern 
-         WHERE MitarbeiterID = ? AND Teamname = ? ORDER BY Telefonnummer"
+        "SELECT Telefonnummer FROM Telefonnummer
+         WHERE FahrerID = ? AND TeamName = ? ORDER BY Telefonnummer"
     );
-    $stmt->execute([$mitarbeiterID, $teamname]);
+    $stmt->execute([$fahrerID, $teamName]);
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
-// Telefonnummern komplett ersetzen (alte raus, neue rein)
-function telefonnummernSpeichern($verbindung, $mitarbeiterID, $teamname, array $nummern)
+function telefonnummernSpeichern($verbindung, $fahrerID, $teamName, array $nummern)
 {
     $stmt = $verbindung->prepare(
-        "DELETE FROM Telefonnummern WHERE MitarbeiterID = ? AND Teamname = ?"
+        "DELETE FROM Telefonnummer WHERE FahrerID = ? AND TeamName = ?"
     );
-    $stmt->execute([$mitarbeiterID, $teamname]);
+    $stmt->execute([$fahrerID, $teamName]);
 
     $stmt = $verbindung->prepare(
-        "INSERT INTO Telefonnummern (MitarbeiterID, Teamname, Telefonnummer) VALUES (?, ?, ?)"
+        "INSERT INTO Telefonnummer (FahrerID, TeamName, Telefonnummer) VALUES (?, ?, ?)"
     );
     foreach ($nummern as $nr) {
         $nr = trim($nr);
         if ($nr !== '') {
-            $stmt->execute([$mitarbeiterID, $teamname, $nr]);
+            $stmt->execute([$fahrerID, $teamName, $nr]);
         }
     }
 }

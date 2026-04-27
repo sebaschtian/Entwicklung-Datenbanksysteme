@@ -17,8 +17,8 @@ $fehler = "";
 $erfolg = "";
 
 // Fügt Namen in Variablen ein damit sie in include dann per SQL Befehl ausgeführt werden können 
-// Schaut ob es eine POST Anfrage ist && ob der Button "team_anlegen" gedrückt wurde, damit die Funktion teamEintragen() nur dann ausgeführt wird, wenn das Formular abgeschickt wird.
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['team_anlegen'] === 'team') {
+// Schaut ob es eine POST Anfrage gibt && ob der Button "team_anlegen" gedrückt wurde, damit die Funktion teamEintragen() nur dann ausgeführt wird, wenn das Formular abgeschickt wird.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['team_anlegen'])) {
     $teamname = trim($_POST['teamname']);
     $nameteamchef = trim($_POST['nameteamchef']);
     $loginname = trim($_POST['teamchef_login']);
@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_POST['team_anlegen'] === 'team') 
 }
 
 // Login Teamchef
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_login'])) {
     $loginname = trim($_POST['loginname']);
     $kennwort = $_POST['kennwort'];
 
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Login Rennveranstalter
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_login'])) {
     $name = trim($_POST['name']);
     $kennwort = $_POST['kennwort'];
 
@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Registrierung Rennveranstalter
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registrierung'])) {
     $name = trim($_POST['name']);
     $kennwort = $_POST['kennwort'];
 
@@ -157,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 
     <h2>Registrierung Rennveranstalter</h2>
-        <?php if ($fehler): ?>
+    <?php if ($fehler): ?>
         <p style="color:red;"><?= htmlspecialchars($fehler) ?></p>
     <?php endif; ?>
 

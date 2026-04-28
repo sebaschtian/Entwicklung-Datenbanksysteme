@@ -17,4 +17,3 @@ try {
 } catch (PDOException $e) {
     die("Verbindung fehlgeschlagen: " . $e->getMessage());
 }
-?>

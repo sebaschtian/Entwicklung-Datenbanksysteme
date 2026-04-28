@@ -1,107 +1,93 @@
-<!--Autor: Sebastian Rieg
-    Includes Einfügen -->
 <?php
-include 'includes/db.inc.php';
-include 'includes/team.inc.php';
-include 'includes/fahrer.inc.php';
-//Sessions
-$abgemeldet = false;
+// Autor: Sebastian Rieg
+session_start();
+ 
+require 'Backend/db.inc.php';
+require 'Backend/team.inc.php';
+require 'Backend/fahrer.inc.php';
+require 'Backend/veranstalter.inc.php';
+ 
+// Logout
 if (isset($_GET['logout'])) {
     session_unset();
     session_destroy();
-    $abgemeldet = true;
 }
-
-// Eingabevalidierung und Teamregistrierung
-$fehler = "";
-$erfolg = "";
-
-// Fügt Namen in Variablen ein damit sie in include dann per SQL Befehl ausgeführt werden können 
-// Schaut ob es eine POST Anfrage gibt && ob der Button "team_anlegen" gedrückt wurde, damit die Funktion teamEintragen() nur dann ausgeführt wird, wenn das Formular abgeschickt wird.
+ 
+$fehlerTeam         = "";
+$fehlerTeamchef     = "";
+$fehlerVeranstalter = "";
+$erfolg             = "";
+ 
+// ── Team anlegen ──────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['team_anlegen'])) {
-    $teamname = trim($_POST['teamname']);
-    $nameteamchef = trim($_POST['nameteamchef']);
-    $loginname = trim($_POST['teamchef_login']);
-    $kennwort = $_POST['teamchef_kennwort'];
-    if (empty($teamname) || empty($nameteamchef) || empty($loginname) || empty($kennwort)) {
-        $fehler = "Bitte alle Felder ausfüllen.";
-    } elseif (teamExistiert($verbindung, $teamname)) {
-        $fehler = "Ein Team mit diesem Namen existiert bereits.";
+    $teamName     = trim($_POST['teamname']);
+    $nameTeamchef = trim($_POST['nameteamchef']);
+    $loginName    = trim($_POST['teamchef_loginname']);
+    $kennwort     = $_POST['teamchef_kennwort'];
+ 
+    if (empty($teamName) || empty($nameTeamchef) || empty($loginName) || empty($kennwort)) {
+        $fehlerTeam = "Bitte alle Felder ausfüllen.";
+    } elseif (teamExistiert($verbindung, $teamName)) {
+        $fehlerTeam = "Ein Team mit diesem Namen existiert bereits.";
     } else {
-        teamEintragen($verbindung, $teamname, $nameteamchef, $loginname, $kennwort);
-        $erfolg = "Team wurde erfolgreich angelegt!";
+        teamEintragen($verbindung, $teamName, $nameTeamchef, $loginName, $kennwort);
+        $erfolg = "team_anlegen";
     }
 }
-
-// Login Teamchef
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_login'])) {
-    $loginname = trim($_POST['loginname']);
-    $kennwort = $_POST['kennwort'];
-
+ 
+// ── Login Teamchef ────────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_anmelden'])) {
+    $loginName = trim($_POST['loginname']);
+    $kennwort  = $_POST['kennwort'];
+ 
     $stmt = $verbindung->prepare(
-        "SELECT LoginName, KennwortTeamchef, Teamname, Vorname, Nachname 
+        "SELECT LoginName, Kennwort, TeamName, NameTeamchef 
          FROM Teamchef WHERE LoginName = ?"
     );
-    $stmt->execute([$loginname]);
+    $stmt->execute([$loginName]);
     $teamchef = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($teamchef && password_verify($kennwort, $teamchef['KennwortTeamchef'])) {
-        $_SESSION['teamchef_login'] = $teamchef['LoginName'];
-        $_SESSION['teamchef_teamname'] = $teamchef['Teamname'];
-        $_SESSION['teamchef_name'] = $teamchef['Vorname'] . ' ' . $teamchef['Nachname'];
-        header('Location: teamchef/dashboard.php');
+ 
+    if ($teamchef && password_verify($kennwort, $teamchef['Kennwort'])) {
+        $_SESSION['teamchef_login']    = $teamchef['LoginName'];
+        $_SESSION['teamchef_teamname'] = $teamchef['TeamName'];
+        $_SESSION['teamchef_name']     = $teamchef['NameTeamchef'];
+        header('Location: Fahrerverwaltung.php');
         exit;
     } else {
-        $fehler = "Loginname oder Kennwort falsch.";
+        $fehlerTeamchef = "Loginname oder Kennwort falsch.";
     }
 }
-
-// Login Rennveranstalter
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_login'])) {
-    $name = trim($_POST['name']);
-    $kennwort = $_POST['kennwort'];
-
-    $stmt = $verbindung->prepare(
-        "SELECT Name, Kennwort FROM Rennveranstalter WHERE Name = ?"
-    );
-    $stmt->execute([$name]);
-    $veranstalter = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($veranstalter && password_verify($kennwort, $veranstalter['Kennwort'])) {
-        $_SESSION['veranstalter_name'] = $veranstalter['Name'];
-        header('Location: versanstalter/dashboard.php');
+ 
+// ── Login Rennveranstalter ────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_anmelden'])) {
+    $veranstalterName = trim($_POST['veranstalter_name']);
+    $kennwort         = $_POST['veranstalter_kennwort'];
+ 
+    if (veranstalterLogin($verbindung, $veranstalterName, $kennwort)) {
+        $_SESSION['veranstalter_name'] = $veranstalterName;
+        header('Location: Rennveranstalter.php');
         exit;
     } else {
-        $fehler = "Name oder Kennwort falsch.";
+        $fehlerVeranstalter = "Name oder Kennwort falsch.";
     }
 }
-
-// Registrierung Rennveranstalter
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registrierung'])) {
-    $name = trim($_POST['name']);
-    $kennwort = $_POST['kennwort'];
-
-    if (empty($name) || empty($kennwort)) {
-        $fehler = "Bitte alle Felder ausfüllen.";
+ 
+// ── Registrierung Rennveranstalter ────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registrieren'])) {
+    $veranstalterName = trim($_POST['veranstalter_name']);
+    $kennwort         = $_POST['veranstalter_kennwort'];
+ 
+    if (empty($veranstalterName) || empty($kennwort)) {
+        $fehlerVeranstalter = "Bitte alle Felder ausfüllen.";
+    } elseif (veranstalterExistiert($verbindung, $veranstalterName)) {
+        $fehlerVeranstalter = "Ein Veranstalter mit diesem Namen existiert bereits.";
     } else {
-        // Prüfen ob Name bereits existiert
-        $stmt = $verbindung->prepare("SELECT Name FROM Rennveranstalter WHERE Name = ?");
-        $stmt->execute([$name]);
-
-        if ($stmt->rowCount() > 0) {
-            $fehler = "Ein Rennveranstalter mit diesem Namen existiert bereits.";
-        } else {
-            $kennwort_hash = password_hash($kennwort, PASSWORD_DEFAULT);
-            $stmt = $verbindung->prepare(
-                "INSERT INTO Rennveranstalter (Name, Kennwort) VALUES (?, ?)"
-            );
-            $stmt->execute([$name, $kennwort_hash]);
-            $erfolg = "Registrierung erfolgreich! Sie können sich jetzt anmelden.";
-        }
+        veranstalterRegistrieren($verbindung, $veranstalterName, $kennwort);
+        $erfolg = "veranstalter_registrieren";
     }
 }
 ?>
-
+ 
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -110,67 +96,74 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registri
 </head>
 <body>
     <h1>Startseite</h1>
-    <a href="index.php">Startseite Neu Laden</a>
-    
+    <a href="index.php">Startseite neu laden</a>
+ 
+    <?php if (isset($_GET['logout'])): ?>
+        <p style="color:green;">Sie wurden erfolgreich abgemeldet.</p>
+    <?php endif; ?>
+ 
+    <!-- ── Team anlegen ── -->
     <h2>Anlegen eines Teams</h2>
-    <?php if ($fehler): ?>
-        <p style="color:red;"><?= htmlspecialchars($fehler) ?></p>
+    <?php if ($fehlerTeam): ?>
+        <p style="color:red;"><?= htmlspecialchars($fehlerTeam) ?></p>
     <?php endif; ?>
-
-    <?php if ($erfolg): ?>
-        <p style="color:green;"><?= htmlspecialchars($erfolg) ?></p>
+    <?php if ($erfolg === 'team_anlegen'): ?>
+        <p style="color:green;">Team wurde erfolgreich angelegt!</p>
     <?php else: ?>
-        <form action="index.php" method="post"> <!-- Wenn Registrierung erfolgreich, $erfolg ausgeben als Rückmeldung -->
-            <label for="teamname">Teamname: 
-            <input type="text" id="teamname" name="teamname" value="<?= isset($_POST['teamname']) ? htmlspecialchars($_POST['teamname']) : '' ?>" required></label>
-            <br>
-            <label for="nameteamchef">Name des Teamchefs: 
-            <input type="text" id="nameteamchef" name="nameteamchef" value="<?= isset($_POST['nameteamchef']) ? htmlspecialchars($_POST['nameteamchef']) : '' ?>" required></label>
-            <br>
-            <label for="teamchef_login">Loginname:
-            <input type="text" id="teamchef_login" name="teamchef_login" value="<?= isset($_POST['teamchef_login']) ? htmlspecialchars($_POST['teamchef_login']) : '' ?>" required></label>
-            <br>   <!-- SQL §_Post nimmt das was eingegeben wurde und schreibt es in 'teamchef_login'-->
-            <label for="teamchef_kennwort">Kennwort: 
-            <input type="password" id="teamchef_kennwort" name="teamchef_kennwort" required></label>
-            <br>
-            <input type="submit" name="team_anlegen" value="Team anlegen">
-        </form>
+    <form action="index.php" method="post">
+        <label>Teamname:
+            <input type="text" name="teamname"
+                value="<?= isset($_POST['teamname']) ? htmlspecialchars($_POST['teamname']) : '' ?>" required>
+        </label><br>
+        <label>Name des Teamchefs:
+            <input type="text" name="nameteamchef"
+                value="<?= isset($_POST['nameteamchef']) ? htmlspecialchars($_POST['nameteamchef']) : '' ?>" required>
+        </label><br>
+        <label>Loginname:
+            <input type="text" name="teamchef_loginname"
+                value="<?= isset($_POST['teamchef_loginname']) ? htmlspecialchars($_POST['teamchef_loginname']) : '' ?>" required>
+        </label><br>
+        <label>Kennwort:
+            <input type="password" name="teamchef_kennwort" required>
+        </label><br>
+        <input type="submit" name="team_anlegen" value="Team anlegen">
+    </form>
     <?php endif; ?>
-
+ 
+    <!-- ── Login Teamchef ── -->
     <h2>Login Teamchef</h2>
-    <form method="post" action="Teamchef.php">
-        <label for="loginname">Loginname: <input type="text" id="loginname" name="loginname" required></label>
-        <br>
-        <label for="kennwort">Kennwort: <input type="password" id="kennwort" name="kennwort" required></label>
-        <br>
-        <input type="submit" value="Anmelden">
-    </form>
-        
-
-    <h2>Anmeldung Rennveranstalter</h2>
-    <form method="post" action="Rennveranstalter.php">
-        <label for="name">Name: <input type="text" id="name" name="name" required></label>
-        <br>
-        <label for="kennwort">Kennwort: <input type="password" id="kennwort" name="kennwort" required></label>
-        <br>
-        <input type="submit" value="Anmelden">
-    </form>
-
-    <h2>Registrierung Rennveranstalter</h2>
-    <?php if ($fehler): ?>
-        <p style="color:red;"><?= htmlspecialchars($fehler) ?></p>
+    <?php if ($fehlerTeamchef): ?>
+        <p style="color:red;"><?= htmlspecialchars($fehlerTeamchef) ?></p>
     <?php endif; ?>
-
-    <?php if ($erfolg): ?>
-        <p style="color:green;"><?= htmlspecialchars($erfolg) ?></p>
-        <a href="veranstalter_login.php">Zum Login</a>
-    <?php else: ?>
-    <form method="post" action="Rennveranstalter.php">
-        <label for="name">Name: 
-        <input type="text" id="name" name="name" value="<?= isset($_POST['name']) ? htmlspecialchars($_POST['name']) : '' ?>" required></label>
-        <br>
-        <label for="kennwort">Kennwort: <input type="password" id="kennwort" name="kennwort" required></label>
-        <br>
-        <input type="submit" value="Registrieren">
-        </form>
+    <form action="index.php" method="post">
+        <label>Loginname:
+            <input type="text" name="loginname" required>
+        </label><br>
+        <label>Kennwort:
+            <input type="password" name="kennwort" required>
+        </label><br>
+        <input type="submit" name="teamchef_anmelden" value="Anmelden">
+    </form>
+ 
+    <!-- ── Rennveranstalter Anmeldung & Registrierung ── -->
+    <h2>Anmeldung / Registrierung Rennveranstalter</h2>
+    <?php if ($fehlerVeranstalter): ?>
+        <p style="color:red;"><?= htmlspecialchars($fehlerVeranstalter) ?></p>
     <?php endif; ?>
+    <?php if ($erfolg === 'veranstalter_registrieren'): ?>
+        <p style="color:green;">Registrierung erfolgreich! Sie können sich jetzt anmelden.</p>
+    <?php endif; ?>
+    <form action="index.php" method="post">
+        <label>Name:
+            <input type="text" name="veranstalter_name"
+                value="<?= isset($_POST['veranstalter_name']) ? htmlspecialchars($_POST['veranstalter_name']) : '' ?>" required>
+        </label><br>
+        <label>Kennwort:
+            <input type="password" name="veranstalter_kennwort" required>
+        </label><br>
+        <input type="submit" name="veranstalter_anmelden" value="Anmelden">
+        <input type="submit" name="veranstalter_registrieren" value="Registrieren">
+    </form>
+ 
+</body>
+</html>

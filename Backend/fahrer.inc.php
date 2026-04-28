@@ -2,6 +2,7 @@
 // Autor: Sebastian Rieg
 
 // Speichert oder ändert einen Fahrer; gibt die FahrerID zurück
+// Wenn isNeu = true → INSERT, sonst → UPDATE
 function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu)
 {
     if ($isNeu) {
@@ -21,6 +22,7 @@ function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortNam
     }
 }
 
+// Lädt alle Fahrer eines Teams
 function fahrerLaden($verbindung, $teamName)
 {
     $stmt = $verbindung->prepare(
@@ -31,6 +33,7 @@ function fahrerLaden($verbindung, $teamName)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Lädt einen einzelnen Fahrer anhand FahrerID und TeamName
 function fahrerLadenEinzeln($verbindung, $fahrerID, $teamName)
 {
     $stmt = $verbindung->prepare(
@@ -41,6 +44,7 @@ function fahrerLadenEinzeln($verbindung, $fahrerID, $teamName)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
+// Löscht einen Fahrer und seine Telefonnummern (Transaktion für Konsistenz)
 function fahrerLoeschen($verbindung, $fahrerID, $teamName)
 {
     $verbindung->beginTransaction();
@@ -62,6 +66,7 @@ function fahrerLoeschen($verbindung, $fahrerID, $teamName)
     }
 }
 
+// Lädt alle Telefonnummern eines Fahrers
 function telefonnummernLaden($verbindung, $fahrerID, $teamName)
 {
     $stmt = $verbindung->prepare(
@@ -72,6 +77,7 @@ function telefonnummernLaden($verbindung, $fahrerID, $teamName)
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
+// Ersetzt alle Telefonnummern eines Fahrers (löschen + neu einfügen)
 function telefonnummernSpeichern($verbindung, $fahrerID, $teamName, array $nummern)
 {
     $stmt = $verbindung->prepare(
@@ -88,4 +94,25 @@ function telefonnummernSpeichern($verbindung, $fahrerID, $teamName, array $numme
             $stmt->execute([$fahrerID, $teamName, $nr]);
         }
     }
+}
+
+// Lädt alle verfügbaren Trainingsziele aus der Lookup-Tabelle
+function trainingszieleAbrufen($verbindung)
+{
+    $stmt = $verbindung->prepare(
+        "SELECT Trainingsziel FROM Trainingsziel ORDER BY Trainingsziel"
+    );
+    $stmt->execute();
+    return $stmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// Speichert ein neues Training für einen Fahrer
+// Pro Fahrer nur ein Training pro Tag (DB-Constraint über PK Datum+FahrerID)
+function trainingErfassen($verbindung, $fahrerID, $teamName, $datum, $gefahreneKM, $trainingsziel)
+{
+    $stmt = $verbindung->prepare(
+        "INSERT INTO Training (FahrerID, TeamName, Datum, gefahreneKM, Trainingsziel)
+         VALUES (?, ?, ?, ?, ?)"
+    );
+    $stmt->execute([$fahrerID, $teamName, $datum, $gefahreneKM, $trainingsziel]);
 }

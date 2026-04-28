@@ -1,5 +1,5 @@
 <?php
-// Autor: Sebastian Rieg
+
 session_start();
  
 require 'Backend/db.inc.php';
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_anmelden
         $fehlerVeranstalter = "Name oder Kennwort falsch.";
     }
 }
- 
+
 // ── Registrierung Rennveranstalter ────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registrieren'])) {
     $veranstalterName = trim($_POST['veranstalter_name']);

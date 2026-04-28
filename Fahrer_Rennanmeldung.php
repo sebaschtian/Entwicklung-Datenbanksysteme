@@ -1,9 +1,7 @@
-<!-- Autor: Sebastian Rieg
-	 Fahrer Rennanmeldung-->
-	 
 <?php
-	include '../includes/db.inc.php';
-    include '../includes/fahrer.inc.php';
+// Autor: Sebastian Rieg
+	include '../Backend/db.inc.php';
+    include '../Backend/fahrer.inc.php';
     session_start();
 ?>
 

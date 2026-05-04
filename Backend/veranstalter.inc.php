@@ -1,10 +1,6 @@
 <?php
 // Autor: Sebastian Rieg
 
-// ─────────────────────────────────────────
-// AUTHENTIFIZIERUNG
-// ─────────────────────────────────────────
-
 // Prüft ob ein Veranstalter bereits existiert
 function veranstalterExistiert($verbindung, $veranstalterName)
 {

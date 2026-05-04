@@ -39,18 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['team_anlegen'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_anmelden'])) {
     $loginName = trim($_POST['loginname']);
     $kennwort  = $_POST['kennwort'];
- 
-    $stmt = $verbindung->prepare(
-        "SELECT LoginName, Kennwort, TeamName, NameTeamchef 
-         FROM Teamchef WHERE LoginName = ?"
-    );
-    $stmt->execute([$loginName]);
-    $teamchef = $stmt->fetch(PDO::FETCH_ASSOC);
- 
-    if ($teamchef && password_verify($kennwort, $teamchef['Kennwort'])) {
+
+    $teamchef = teamchefLogin($verbindung, $loginName, $kennwort);
+    if ($teamchef) {
         $_SESSION['teamchef_login']    = $teamchef['LoginName'];
         $_SESSION['teamchef_teamname'] = $teamchef['TeamName'];
-        $_SESSION['teamchef_name']     = $teamchef['NameTeamchef'];
         header('Location: Fahrerverwaltung.php');
         exit;
     } else {

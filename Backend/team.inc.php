@@ -33,3 +33,18 @@ function teamEintragen($verbindung, $teamName, $nameTeamchef, $loginName, $kennw
         throw $e;
     }
 }
+
+function teamchefLogin($verbindung, $loginName, $kennwort)
+{
+    $stmt = $verbindung->prepare(
+        "SELECT LoginName, Kennwort, TeamName 
+         FROM Teamchef WHERE LoginName = ?"
+    );
+    $stmt->execute([$loginName]);
+    $teamchef = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($teamchef && password_verify($kennwort, $teamchef['Kennwort'])) {
+        return $teamchef; // gibt Array zurück bei Erfolg
+    }
+    return false;
+}

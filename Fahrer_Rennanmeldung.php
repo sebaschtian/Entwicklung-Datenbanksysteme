@@ -1,39 +1,5 @@
 <?php
 // Autor: Sebastian Rieg
-	include '../Backend/db.inc.php';
-    include '../Backend/fahrer.inc.php';
-    session_start();
-?>
-
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Rennanmeldung Fahrer</title>
-</head>
-<body>                                          
-    <h1>Rennanmeldung Fahrer</h1>
-
-    <form method="post" action="Fahrer_Rennanmeldung.php">
-
-            <!-- Hier werden die Teams aus der Datenbank geladen -->
-            <?php
-                $sql = "SELECT team_id, teamname FROM team";
-                $result = $conn->query($sql);
-
-                if ($result->num_rows > 0) {
-                    while($row = $result->fetch_assoc()) {
-                        echo "<option value='" . $row["team_id"] . "'>" . $row["teamname"] . "</option>";
-                    }
-                } else {
-                    echo "<option value=''>Keine Fahrer verfügbar</option>";
-                }
-            ?>
-        </select></label>
-
-        <input type="submit" value="Anmelden">
-    </form><?php
-// Autor: Sebastian Rieg
 session_start();
 
 if (!isset($_SESSION['teamchef_login'])) {
@@ -187,9 +153,9 @@ $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
 <!-- ── Schritt 1: Anzahl Fahrer wählen ── -->
 <?php
 $rennen = rennenLadenEinzeln($verbindung, $gewaehlteRennID);
-if (!$rennen) {
+if (!$rennen):
     echo '<p style="color:red;">Rennen nicht gefunden.</p>';
-} elseif ($anzahlZeilen === 0):
+    elseif ($anzahlZeilen === 0):
 ?>
 <h2>Anmeldung für: <?= htmlspecialchars($rennen['Startort']) ?> (<?= htmlspecialchars($rennen['Datum']) ?>)</h2>
 <form action="Fahrer_Rennanmeldung.php?action=anmelden" method="post">
@@ -269,4 +235,4 @@ if (empty($zielRennen)):
 <?php endif; ?>
 
 </body>
-<
+</html>

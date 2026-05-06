@@ -30,13 +30,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) 
         $fehler = "Bitte alle Pflichtfelder ausfüllen.";
         $action = 'formular';
     } else {
-        $fahrerID = fahrerSpeichern(
-            $verbindung, $fahrerID, $teamName,
-            $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu
-        );
-        telefonnummernSpeichern($verbindung, $fahrerID, $teamName, $nummern);
-        $erfolg = $isNeu ? "Fahrer erfolgreich angelegt." : "Fahrer erfolgreich aktualisiert.";
-        $action = 'liste';
+        try {
+            $fahrerID = fahrerSpeichern(
+                $verbindung, $fahrerID, $teamName,
+                $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu
+            );
+            telefonnummernSpeichern($verbindung, $fahrerID, $teamName, $nummern);
+            $erfolg = $isNeu ? "Fahrer erfolgreich angelegt." : "Fahrer erfolgreich aktualisiert.";
+            $action = 'liste';
+        } catch (Exception $e) {
+            $fehler = "Fahrer konnte nicht gespeichert werden.";
+            $action = 'formular';
+        }
     }
 }
 

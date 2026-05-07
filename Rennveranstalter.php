@@ -1,5 +1,5 @@
 <?php
-// Autor: Marlies Achterhold
+// Autor: Marlies Achterholt
 session_start();
 
 // Zugriffschutz – nur angemeldete Rennveranstalter

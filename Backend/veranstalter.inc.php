@@ -1,6 +1,5 @@
 <?php
-// Autor: Sebastian Rieg
-
+// Autor: Marlies Achterholt
 // Prüft ob ein Veranstalter bereits existiert
 function veranstalterExistiert($verbindung, $veranstalterName)
 {
@@ -42,12 +41,16 @@ function veranstalterLogin($verbindung, $veranstalterName, $kennwort)
 // Legt ein neues Rennen an; RennID wird automatisch vergeben
 function rennAnlegen($verbindung, $veranstalterName, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung)
 {
+    // Nächste RennID manuell ermitteln, da kein AUTO_INCREMENT gesetzt ist
+    $ergebnis   = $verbindung->query("SELECT COALESCE(MAX(RennID), 0) + 1 FROM Rennen");
+    $naechsteID = max(1, (int) $ergebnis->fetchColumn(0));
+
     $stmt = $verbindung->prepare(
-        "INSERT INTO Rennen (Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung, VeranstalterName)
-         VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO Rennen (RennID, Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung, VeranstalterName)
+         VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
-    $stmt->execute([$datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung, $veranstalterName]);
-    return (int) $verbindung->lastInsertId();
+    $stmt->execute([$naechsteID, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung, $veranstalterName]);
+    return $naechsteID;
 }
 
 // Lädt alle Rennen

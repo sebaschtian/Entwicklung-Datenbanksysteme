@@ -1,5 +1,5 @@
 <?php
-// Autor: Sebastian Rieg
+// Autor: Marlies Achterholt
 session_start();
 
 // Zugriffschutz – nur angemeldete Teamchefs

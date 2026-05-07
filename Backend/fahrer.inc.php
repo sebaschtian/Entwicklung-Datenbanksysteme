@@ -7,9 +7,8 @@ function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortNam
 {
     if ($isNeu) {
         // Nächste FahrerID manuell ermitteln, da kein AUTO_INCREMENT gesetzt ist
-        $stmtMax = $verbindung->prepare("SELECT COALESCE(MAX(FahrerID), 0) + 1 FROM Fahrer");
-        $stmtMax->execute();
-        $naechsteID = (int) $stmtMax->fetchColumn();
+        $ergebnis   = $verbindung->query("SELECT COALESCE(MAX(FahrerID), 0) + 1 FROM Fahrer");
+        $naechsteID = max(1, (int) $ergebnis->fetchColumn(0));
 
         $stmt = $verbindung->prepare(
             "INSERT INTO Fahrer (FahrerID, FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)

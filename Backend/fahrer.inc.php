@@ -6,12 +6,17 @@
 function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu)
 {
     if ($isNeu) {
+        // Nächste FahrerID manuell ermitteln, da kein AUTO_INCREMENT gesetzt ist
+        $stmtMax = $verbindung->prepare("SELECT COALESCE(MAX(FahrerID), 0) + 1 FROM Fahrer");
+        $stmtMax->execute();
+        $naechsteID = (int) $stmtMax->fetchColumn();
+
         $stmt = $verbindung->prepare(
-            "INSERT INTO Fahrer (FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)
-             VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO Fahrer (FahrerID, FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)
+             VALUES (?, ?, ?, ?, ?, ?)"
         );
-        $stmt->execute([$fahrerName, $ortName, $plz, $strasseHausnummer, $teamName]);
-        return (int) $verbindung->lastInsertId();
+        $stmt->execute([$naechsteID, $fahrerName, $ortName, $plz, $strasseHausnummer, $teamName]);
+        return $naechsteID;
     } else {
         $stmt = $verbindung->prepare(
             "UPDATE Fahrer SET FahrerName = ?, OrtName = ?, PLZ = ?, StrasseHausnummer = ?

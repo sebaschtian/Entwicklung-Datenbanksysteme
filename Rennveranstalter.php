@@ -1,5 +1,5 @@
 <?php
-// Autor: Sebastian Rieg
+// Autor: Marlies Achterhold
 session_start();
 
 // Zugriffschutz – nur angemeldete Rennveranstalter

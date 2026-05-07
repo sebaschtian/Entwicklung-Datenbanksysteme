@@ -18,13 +18,14 @@ $erfolg   = "";
 
 // ── Fahrer speichern (neu oder ändern) ───────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) {
-    $fahrerID         = (int) ($_POST['fahrerID'] ?? 0);
+    $fahrerIDRaw      = $_POST['fahrerID'] ?? '';
+    $fahrerID         = (int) $fahrerIDRaw;
     $fahrerName       = trim($_POST['fahrerName']);
     $ortName          = trim($_POST['ortName']);
     $plz              = trim($_POST['plz']);
     $strasseHausnummer = trim($_POST['strasseHausnummer']);
     $nummern          = $_POST['telefonnummern'] ?? [];
-    $isNeu            = ($fahrerID === 0);
+    $isNeu            = ($fahrerIDRaw === ''); // leer = neuer Fahrer, "0" = Bearbeiten von ID 0
 
     if (empty($fahrerName) || empty($ortName) || empty($plz) || empty($strasseHausnummer)) {
         $fehler = "Bitte alle Pflichtfelder ausfüllen.";
@@ -39,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) 
             $erfolg = $isNeu ? "Fahrer erfolgreich angelegt." : "Fahrer erfolgreich aktualisiert.";
             $action = 'liste';
         } catch (Exception $e) {
-            $fehler = "Fahrer konnte nicht gespeichert werden.";
+            $fehler = "Fahrer konnte nicht gespeichert werden: " . $e->getMessage();
             $action = 'formular';
         }
     }
@@ -59,13 +60,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_loeschen'])) {
 
 // ── Training erfassen ─────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['training_speichern'])) {
-    $fahrerID     = (int) $_POST['fahrerID'];
+    $fahrerIDRaw  = $_POST['fahrerID'] ?? '';
+    $fahrerID     = (int) $fahrerIDRaw;
     $datum        = trim($_POST['datum']);
     $gefahreneKM  = (int) $_POST['gefahreneKM'];
     $trainingsziel = trim($_POST['trainingsziel']);
 
-    if (empty($datum) || $gefahreneKM <= 0 || empty($trainingsziel) || $fahrerID === 0) {
-        $fehler = "Bitte alle Felder ausfüllen.";
+    if ($fahrerIDRaw === '') {
+        $fehler = "Bitte einen Fahrer auswählen.";
+        $action = 'training';
+    } elseif (empty($datum)) {
+        $fehler = "Bitte ein Datum eingeben.";
+        $action = 'training';
+    } elseif ($gefahreneKM <= 0) {
+        $fehler = "Bitte gefahrene Kilometer eingeben (mind. 1).";
+        $action = 'training';
+    } elseif (empty($trainingsziel)) {
+        $fehler = "Bitte ein Trainingsziel auswählen. (Sind Trainingsziele in der Datenbank vorhanden?)";
         $action = 'training';
     } else {
         try {
@@ -163,9 +174,9 @@ $trainingsziele = trainingszieleAbrufen($verbindung);
     <!-- ── Fahrer anlegen / bearbeiten (eine Seite, ein Button) ── -->
     <h2><?= $fahrerEdit ? 'Fahrer bearbeiten' : 'Neuen Fahrer anlegen' ?></h2>
     <form action="Fahrerverwaltung.php" method="post">
-        <!-- FahrerID = 0 bei Neueintrag, gesetzt bei Änderung -->
+        <!-- leer = Neueintrag, gesetzt = Änderung (auch ID 0 möglich) -->
         <input type="hidden" name="fahrerID"
-               value="<?= $fahrerEdit ? htmlspecialchars($fahrerEdit['FahrerID']) : '0' ?>">
+               value="<?= $fahrerEdit ? htmlspecialchars($fahrerEdit['FahrerID']) : '' ?>">
 
         <?php if ($fahrerEdit): ?>
             <p>Fahrer-ID: <strong><?= htmlspecialchars($fahrerEdit['FahrerID']) ?></strong>
@@ -224,7 +235,7 @@ $trainingsziele = trainingszieleAbrufen($verbindung);
                 <?php foreach ($fahrer as $f): ?>
                     <option value="<?= $f['FahrerID'] ?>"
                         <?= (isset($_POST['fahrerID']) && $_POST['fahrerID'] == $f['FahrerID']) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($f['FahrerID'] . ' @@@ ' . $f['FahrerName']) ?>
+                        <?= htmlspecialchars($f['FahrerName']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>

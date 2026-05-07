@@ -22,27 +22,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_anmelden'])) {
     $fahrerIDs = $_POST['fahrerIDs'] ?? [];
 
     $gespeichert = 0;
-    foreach ($fahrerIDs as $fahrerID) {
-        $fahrerID = (int) $fahrerID;
-        if ($fahrerID === 0) continue; // leere Zeilen überspringen
+    try {
+        foreach ($fahrerIDs as $fahrerIDRaw) {
+            if ($fahrerIDRaw === '') continue; // "-- kein Fahrer --" überspringen
+            $fahrerID = (int) $fahrerIDRaw;
 
-        // Doppelte Einträge überspringen
-        $stmtCheck = $verbindung->prepare(
-            "SELECT COUNT(*) FROM nimmtTeil WHERE RennID = ? AND FahrerID = ?"
-        );
-        $stmtCheck->execute([$rennID, $fahrerID]);
-        if ($stmtCheck->fetchColumn() > 0) continue;
+            // Doppelte Einträge überspringen
+            $stmtCheck = $verbindung->prepare(
+                "SELECT COUNT(*) FROM nimmtTeil WHERE RennID = ? AND FahrerID = ?"
+            );
+            $stmtCheck->execute([$rennID, $fahrerID]);
+            if ($stmtCheck->fetchColumn() > 0) continue;
 
-        // Startnummer wird automatisch vom Trigger vergeben
-        $stmt = $verbindung->prepare(
-            "INSERT INTO nimmtTeil (RennID, FahrerID, TeamName)
-             VALUES (?, ?, ?)"
-        );
-        $stmt->execute([$rennID, $fahrerID, $teamName]);
-        $gespeichert++;
+            // Startnummer wird automatisch vom Trigger vergeben
+            $stmt = $verbindung->prepare(
+                "INSERT INTO nimmtTeil (RennID, FahrerID, TeamName)
+                 VALUES (?, ?, ?)"
+            );
+            $stmt->execute([$rennID, $fahrerID, $teamName]);
+            $gespeichert++;
+        }
+        $erfolg = "$gespeichert Fahrer erfolgreich angemeldet.";
+    } catch (Exception $e) {
+        $fehler = "Anmeldung fehlgeschlagen. Prüfe ob der Trigger für Startnummern existiert. (Fehler: " . $e->getMessage() . ")";
     }
-
-    $erfolg = "$gespeichert Fahrer erfolgreich angemeldet.";
     $action = 'liste';
 }
 
@@ -175,21 +178,17 @@ if (!$rennen):
     <table border="1" cellpadding="5">
         <tr>
             <th>Zeile</th>
-            <th>Fahrer (ID @@@ Name)</th>
+            <th>Fahrer</th>
         </tr>
-        <?php
-        // Gewünschte Anzahl + 5 zusätzliche leere Zeilen
-        $gesamtZeilen = $anzahlZeilen + 5;
-        for ($i = 0; $i < $gesamtZeilen; $i++):
-        ?>
+        <?php for ($i = 0; $i < $anzahlZeilen; $i++): ?>
         <tr>
             <td><?= $i + 1 ?></td>
             <td>
                 <select name="fahrerIDs[]">
-                    <option value="0">-- kein Fahrer --</option>
+                    <option value="">-- kein Fahrer --</option>
                     <?php foreach ($fahrer as $f): ?>
                         <option value="<?= $f['FahrerID'] ?>">
-                            <?= htmlspecialchars($f['FahrerID'] . ' @@@ ' . $f['FahrerName']) ?>
+                            <?= htmlspecialchars($f['FahrerName']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>

@@ -38,6 +38,28 @@ function veranstalterLogin($verbindung, $veranstalterName, $kennwort)
 // RENNEN
 // ─────────────────────────────────────────
 
+// Löscht ein Rennen samt aller nimmtTeil-Einträge (nur eigene Rennen des Veranstalters)
+function rennLoeschen($verbindung, $rennID, $veranstalterName)
+{
+    $verbindung->beginTransaction();
+    try {
+        $stmt = $verbindung->prepare(
+            "DELETE FROM nimmtTeil WHERE RennID = ?"
+        );
+        $stmt->execute([$rennID]);
+
+        $stmt = $verbindung->prepare(
+            "DELETE FROM Rennen WHERE RennID = ? AND VeranstalterName = ?"
+        );
+        $stmt->execute([$rennID, $veranstalterName]);
+
+        $verbindung->commit();
+    } catch (Exception $e) {
+        $verbindung->rollBack();
+        throw $e;
+    }
+}
+
 // Legt ein neues Rennen an; RennID wird per AUTO_INCREMENT vergeben
 function rennAnlegen($verbindung, $veranstalterName, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung)
 {

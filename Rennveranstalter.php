@@ -41,6 +41,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_speichern'])) 
     }
 }
 
+// ── Rennen löschen ───────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_loeschen'])) {
+    csrfPruefen();
+    $rennID = (int) $_POST['rennID'];
+    try {
+        rennLoeschen($verbindung, $rennID, $veranstalterName);
+        $erfolg = "Rennen erfolgreich gelöscht.";
+    } catch (Exception $e) {
+        $fehler = "Rennen konnte nicht gelöscht werden: " . $e->getMessage();
+    }
+    $action = 'liste';
+}
+
 // ── Ergebnis speichern ────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ergebnis_speichern'])) {
     csrfPruefen();
@@ -145,6 +158,15 @@ if ($action === 'ergebnis' && isset($_GET['rennID'])) {
                     <a href="Rennveranstalter.php?action=ergebnis&rennID=<?= $r['RennID'] ?>">
                         Ergebnisse erfassen
                     </a>
+                    <?php if ($r['VeranstalterName'] === $veranstalterName): ?>
+                    &nbsp;
+                    <form action="Rennveranstalter.php" method="post" style="display:inline"
+                          onsubmit="return confirm('Rennen wirklich löschen? Alle Anmeldungen und Ergebnisse gehen verloren.')">
+                        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
+                        <input type="hidden" name="rennID" value="<?= $r['RennID'] ?>">
+                        <input type="submit" name="rennen_loeschen" value="Löschen">
+                    </form>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>

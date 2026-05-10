@@ -6,16 +6,12 @@
 function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu)
 {
     if ($isNeu) {
-        // Nächste FahrerID manuell ermitteln, da kein AUTO_INCREMENT gesetzt ist
-        $ergebnis   = $verbindung->query("SELECT COALESCE(MAX(FahrerID), 0) + 1 FROM Fahrer");
-        $naechsteID = max(1, (int) $ergebnis->fetchColumn(0));
-
         $stmt = $verbindung->prepare(
-            "INSERT INTO Fahrer (FahrerID, FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)
-             VALUES (?, ?, ?, ?, ?, ?)"
+            "INSERT INTO Fahrer (FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)
+             VALUES (?, ?, ?, ?, ?)"
         );
-        $stmt->execute([$naechsteID, $fahrerName, $ortName, $plz, $strasseHausnummer, $teamName]);
-        return $naechsteID;
+        $stmt->execute([$fahrerName, $ortName, $plz, $strasseHausnummer, $teamName]);
+        return (int) $verbindung->lastInsertId();
     } else {
         $stmt = $verbindung->prepare(
             "UPDATE Fahrer SET FahrerName = ?, OrtName = ?, PLZ = ?, StrasseHausnummer = ?
@@ -81,33 +77,38 @@ function telefonnummernLaden($verbindung, $fahrerID, $teamName)
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
-// Ersetzt alle Telefonnummern eines Fahrers (löschen + neu einfügen)
+// Ersetzt alle Telefonnummern eines Fahrers (löschen + neu einfügen, atomar)
 function telefonnummernSpeichern($verbindung, $fahrerID, $teamName, array $nummern)
 {
-    $stmt = $verbindung->prepare(
-        "DELETE FROM Telefonnummer WHERE FahrerID = ? AND TeamName = ?"
-    );
-    $stmt->execute([$fahrerID, $teamName]);
+    $verbindung->beginTransaction();
+    try {
+        $stmtDel = $verbindung->prepare(
+            "DELETE FROM Telefonnummer WHERE FahrerID = ? AND TeamName = ?"
+        );
+        $stmtDel->execute([$fahrerID, $teamName]);
 
-    $stmt = $verbindung->prepare(
-        "INSERT INTO Telefonnummer (FahrerID, TeamName, Telefonnummer) VALUES (?, ?, ?)"
-    );
-    foreach ($nummern as $nr) {
-        $nr = trim($nr);
-        if ($nr !== '') {
-            $stmt->execute([$fahrerID, $teamName, $nr]);
+        $stmtIns = $verbindung->prepare(
+            "INSERT INTO Telefonnummer (FahrerID, TeamName, Telefonnummer) VALUES (?, ?, ?)"
+        );
+        foreach ($nummern as $nr) {
+            $nr = trim($nr);
+            if ($nr !== '') {
+                $stmtIns->execute([$fahrerID, $teamName, $nr]);
+            }
         }
+        $verbindung->commit();
+    } catch (Exception $e) {
+        $verbindung->rollBack();
+        throw $e;
     }
 }
 
 // Lädt alle verfügbaren Trainingsziele aus der Lookup-Tabelle
 function trainingszieleAbrufen($verbindung)
 {
-    $stmt = $verbindung->prepare(
+    return $verbindung->query(
         "SELECT Trainingsziel FROM Trainingsziel ORDER BY Trainingsziel"
-    );
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    )->fetchAll(PDO::FETCH_COLUMN);
 }
 
 // Fügt ein neues Trainingsziel hinzu

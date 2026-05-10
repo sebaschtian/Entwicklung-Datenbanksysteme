@@ -38,41 +38,33 @@ function veranstalterLogin($verbindung, $veranstalterName, $kennwort)
 // RENNEN
 // ─────────────────────────────────────────
 
-// Legt ein neues Rennen an; RennID wird automatisch vergeben
+// Legt ein neues Rennen an; RennID wird per AUTO_INCREMENT vergeben
 function rennAnlegen($verbindung, $veranstalterName, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung)
 {
-    // Nächste RennID manuell ermitteln, da kein AUTO_INCREMENT gesetzt ist
-    $ergebnis   = $verbindung->query("SELECT COALESCE(MAX(RennID), 0) + 1 FROM Rennen");
-    $naechsteID = max(1, (int) $ergebnis->fetchColumn(0));
-
     $stmt = $verbindung->prepare(
-        "INSERT INTO Rennen (RennID, Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung, VeranstalterName)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO Rennen (Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung, VeranstalterName)
+         VALUES (?, ?, ?, ?, ?, ?)"
     );
-    $stmt->execute([$naechsteID, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung, $veranstalterName]);
-    return $naechsteID;
+    $stmt->execute([$datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung, $veranstalterName]);
+    return (int) $verbindung->lastInsertId();
 }
 
 // Lädt alle Rennen
 function rennenLaden($verbindung)
 {
-    $stmt = $verbindung->prepare(
+    return $verbindung->query(
         "SELECT RennID, Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung, VeranstalterName
          FROM Rennen ORDER BY Datum DESC"
-    );
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    )->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Lädt nur zukünftige Rennen (für Fahreranmeldung)
 function rennenLadenZukunft($verbindung)
 {
-    $stmt = $verbindung->prepare(
+    return $verbindung->query(
         "SELECT RennID, Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung
          FROM Rennen WHERE Datum > CURDATE() ORDER BY Datum ASC"
-    );
-    $stmt->execute();
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    )->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Lädt ein einzelnes Rennen anhand der RennID
@@ -90,11 +82,12 @@ function rennenLadenEinzeln($verbindung, $rennID)
 // ERGEBNISSE
 // ─────────────────────────────────────────
 
-// Lädt alle Fahrer eines Rennens mit Startnummer, sortiert nach Startnummer
+// Lädt alle Fahrer eines Rennens inkl. bereits gespeicherter Ergebnisse
 function fahrerZuRennenLaden($verbindung, $rennID)
 {
     $stmt = $verbindung->prepare(
-        "SELECT nt.Startnummer, nt.FahrerID, nt.TeamName, f.FahrerName
+        "SELECT nt.Startnummer, nt.FahrerID, nt.TeamName, f.FahrerName,
+                nt.Platzierung, nt.gefahreneZeit
          FROM nimmtTeil nt
          JOIN Fahrer f ON nt.FahrerID = f.FahrerID AND nt.TeamName = f.TeamName
          WHERE nt.RennID = ?

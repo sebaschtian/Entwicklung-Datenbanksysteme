@@ -10,6 +10,7 @@ if (!isset($_SESSION['teamchef_login'])) {
 
 require 'Backend/db.inc.php';
 require 'Backend/fahrer.inc.php';
+require 'Backend/csrf.inc.php';
 
 $teamName = $_SESSION['teamchef_teamname'];
 $action   = $_GET['action'] ?? 'liste';
@@ -18,6 +19,7 @@ $erfolg   = "";
 
 // ── Fahrer speichern (neu oder ändern) ───────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) {
+    csrfPruefen();
     $fahrerIDRaw      = $_POST['fahrerID'] ?? '';
     $fahrerID         = (int) $fahrerIDRaw;
     $fahrerName       = trim($_POST['fahrerName']);
@@ -48,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) 
 
 // ── Fahrer löschen ────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_loeschen'])) {
+    csrfPruefen();
     $fahrerID = (int) $_POST['fahrerID'];
     try {
         fahrerLoeschen($verbindung, $fahrerID, $teamName);
@@ -60,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_loeschen'])) {
 
 // ── Training erfassen ─────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['training_speichern'])) {
+    csrfPruefen();
     $fahrerIDRaw  = $_POST['fahrerID'] ?? '';
     $fahrerID     = (int) $fahrerIDRaw;
     $datum        = trim($_POST['datum']);
@@ -91,6 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['training_speichern'])
 
 // ── Fahrerprämie speichern ────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['praemie_speichern'])) {
+    csrfPruefen();
     $fahrerID = (int) ($_POST['fahrerID'] ?? 0);
     $rennID   = (int) ($_POST['rennID']   ?? 0);
     $praemie  = $_POST['praemie'] ?? '';
@@ -112,13 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['praemie_speichern']))
 
 // ── Trainingsziel hinzufügen ──────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trainingsziel_hinzufuegen'])) {
+    csrfPruefen();
     $neuesZiel = trim($_POST['neuesTrainingsziel'] ?? '');
     if (empty($neuesZiel)) {
         $fehler = "Bitte ein Trainingsziel eingeben.";
     } else {
         try {
             trainingsZielHinzufuegen($verbindung, $neuesZiel);
-            $erfolg = "Trainingsziel \"" . htmlspecialchars($neuesZiel) . "\" wurde hinzugefügt.";
+            $erfolg = "Trainingsziel \"$neuesZiel\" wurde hinzugefügt.";
         } catch (Exception $e) {
             $fehler = "Trainingsziel existiert bereits oder konnte nicht gespeichert werden.";
         }
@@ -128,10 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trainingsziel_hinzufu
 
 // ── Trainingsziel löschen ─────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trainingsziel_loeschen'])) {
+    csrfPruefen();
     $ziel = $_POST['trainingsziel'] ?? '';
     try {
         trainingsZielLoeschen($verbindung, $ziel);
-        $erfolg = "Trainingsziel \"" . htmlspecialchars($ziel) . "\" wurde gelöscht.";
+        $erfolg = "Trainingsziel \"$ziel\" wurde gelöscht.";
     } catch (Exception $e) {
         $fehler = "Trainingsziel konnte nicht gelöscht werden.";
     }
@@ -153,7 +160,9 @@ if ($action === 'formular' && isset($_GET['fahrerID'])) {
 
 // ── Daten für alle Views laden ────────────────────────────
 $fahrer         = fahrerLaden($verbindung, $teamName);
-$trainingsziele = trainingszieleAbrufen($verbindung);
+$trainingsziele = ($action === 'training' || $action === 'trainingsziele')
+    ? trainingszieleAbrufen($verbindung)
+    : [];
 
 $praemieFahrerID = 0;
 $rennenFahrer    = [];
@@ -221,6 +230,7 @@ if ($action === 'praemie') {
                     <!-- Löschen als POST-Formular um CSRF-Angriffe via GET-Link zu vermeiden -->
                     <form action="Fahrerverwaltung.php" method="post" style="display:inline"
                           onsubmit="return confirm('Fahrer wirklich löschen?')">
+                        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                         <input type="hidden" name="fahrerID" value="<?= $f['FahrerID'] ?>">
                         <input type="submit" name="fahrer_loeschen" value="Löschen">
                     </form>
@@ -234,6 +244,7 @@ if ($action === 'praemie') {
     <!-- ── Fahrer anlegen / bearbeiten (eine Seite, ein Button) ── -->
     <h2><?= $fahrerEdit ? 'Fahrer bearbeiten' : 'Neuen Fahrer anlegen' ?></h2>
     <form action="Fahrerverwaltung.php" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
         <!-- leer = Neueintrag, gesetzt = Änderung (auch ID 0 möglich) -->
         <input type="hidden" name="fahrerID"
                value="<?= $fahrerEdit ? htmlspecialchars($fahrerEdit['FahrerID']) : '' ?>">
@@ -288,6 +299,7 @@ if ($action === 'praemie') {
         <p>Keine Fahrer vorhanden. Bitte zuerst Fahrer anlegen.</p>
     <?php else: ?>
     <form action="Fahrerverwaltung.php?action=training" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
 
         <label>Fahrer:
             <select name="fahrerID" required>
@@ -334,6 +346,7 @@ if ($action === 'praemie') {
 
     <!-- Neues Trainingsziel hinzufügen -->
     <form action="Fahrerverwaltung.php" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
         <label>Neues Trainingsziel:
             <input type="text" name="neuesTrainingsziel" required
                 value="<?= isset($_POST['neuesTrainingsziel']) ? htmlspecialchars($_POST['neuesTrainingsziel']) : '' ?>">
@@ -358,6 +371,7 @@ if ($action === 'praemie') {
                 <td>
                     <form action="Fahrerverwaltung.php" method="post" style="display:inline"
                           onsubmit="return confirm('Trainingsziel wirklich löschen?')">
+                        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
                         <input type="hidden" name="trainingsziel" value="<?= htmlspecialchars($ziel) ?>">
                         <input type="submit" name="trainingsziel_loeschen" value="Löschen">
                     </form>
@@ -397,6 +411,7 @@ if ($action === 'praemie') {
 
     <!-- Schritt 2: Rennen und Prämie eingeben (POST) -->
     <form action="Fahrerverwaltung.php?action=praemie" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
         <input type="hidden" name="fahrerID" value="<?= $praemieFahrerID ?>">
 
         <label>Rennen:

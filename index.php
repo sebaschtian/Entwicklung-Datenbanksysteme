@@ -3,6 +3,7 @@
 session_start();
  
 require 'Backend/db.inc.php';
+require 'Backend/csrf.inc.php';
 require 'Backend/team.inc.php';
 require 'Backend/fahrer.inc.php';
 require 'Backend/veranstalter.inc.php';
@@ -11,6 +12,7 @@ require 'Backend/veranstalter.inc.php';
 if (isset($_GET['logout'])) {
     session_unset();
     session_destroy();
+    session_start(); // frische Session für CSRF-Token auf der Startseite
 }
  
 $fehlerTeam         = "";
@@ -20,6 +22,7 @@ $erfolg             = "";
  
 // ── Team anlegen ──────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['team_anlegen'])) {
+    csrfPruefen();
     $teamName     = trim($_POST['teamname']);
     $nameTeamchef = trim($_POST['nameteamchef']);
     $loginName    = trim($_POST['teamchef_loginname']);
@@ -37,11 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['team_anlegen'])) {
  
 // ── Login Teamchef ────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_anmelden'])) {
+    csrfPruefen();
     $loginName = trim($_POST['loginname']);
     $kennwort  = $_POST['kennwort'];
 
     $teamchef = teamchefLogin($verbindung, $loginName, $kennwort);
     if ($teamchef) {
+        session_regenerate_id(true);
         $_SESSION['teamchef_login']    = $teamchef['LoginName'];
         $_SESSION['teamchef_teamname'] = $teamchef['TeamName'];
         header('Location: Fahrerverwaltung.php');
@@ -53,10 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_anmelden']))
  
 // ── Login Rennveranstalter ────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_anmelden'])) {
+    csrfPruefen();
     $veranstalterName = trim($_POST['veranstalter_name']);
     $kennwort         = $_POST['veranstalter_kennwort'];
- 
+
     if (veranstalterLogin($verbindung, $veranstalterName, $kennwort)) {
+        session_regenerate_id(true);
         $_SESSION['veranstalter_name'] = $veranstalterName;
         header('Location: Rennveranstalter.php');
         exit;
@@ -67,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_anmelden
 
 // ── Registrierung Rennveranstalter ────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registrieren'])) {
+    csrfPruefen();
     $veranstalterName = trim($_POST['veranstalter_name']);
     $kennwort         = $_POST['veranstalter_kennwort'];
  
@@ -104,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registri
         <p style="color:green;">Team wurde erfolgreich angelegt!</p>
     <?php else: ?>
     <form action="index.php" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
         <label>Teamname:
             <input type="text" name="teamname"
                 value="<?= isset($_POST['teamname']) ? htmlspecialchars($_POST['teamname']) : '' ?>" required>
@@ -129,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registri
         <p style="color:red;"><?= htmlspecialchars($fehlerTeamchef) ?></p>
     <?php endif; ?>
     <form action="index.php" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
         <label>Loginname:
             <input type="text" name="loginname" required>
         </label><br>
@@ -147,6 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registri
         <p style="color:green;">Registrierung erfolgreich! Sie können sich jetzt anmelden.</p>
     <?php endif; ?>
     <form action="index.php" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
         <label>Name:
             <input type="text" name="veranstalter_name"
                 value="<?= isset($_POST['veranstalter_name']) ? htmlspecialchars($_POST['veranstalter_name']) : '' ?>" required>

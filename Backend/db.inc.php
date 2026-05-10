@@ -9,6 +9,7 @@ $serverdaten = "mysql:host=$host;dbname=$db_name;charset=utf8";
 try {
     $verbindung = new PDO($serverdaten, $username, $password);
     $verbindung->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $verbindung->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     die("Verbindungsfehler: " . $e->getMessage());
 }

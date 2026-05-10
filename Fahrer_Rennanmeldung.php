@@ -85,8 +85,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kopieren_speichern'])
 }
 
 // ── Daten laden ───────────────────────────────────────────
-$zukuenftigeRennen = rennenLadenZukunft($verbindung);
-$fahrer            = fahrerLaden($verbindung, $teamName);
+$zukuenftigeRennen  = rennenLadenZukunft($verbindung);
+$fahrer             = fahrerLaden($verbindung, $teamName);
+$anmeldungenProRenn = angemeldteFahrerProRennen($verbindung, $teamName);
 
 // Anzahl Zeilen für Anmeldetabelle
 $anzahlZeilen = 0;
@@ -98,12 +99,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['anzahl_bestaetigen'])
 $gewaehlteRennID = (int) ($_GET['rennID'] ?? $_POST['rennID'] ?? 0);
 $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
 ?>
+
+
 <!DOCTYPE html>
 <html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Rennanmeldung</title>
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <title>Rennanmeldung</title>
+    </head>
 <body>
 
 <h1>Rennanmeldung – Team: <?= htmlspecialchars($teamName) ?></h1>
@@ -132,9 +135,11 @@ $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
             <th>km</th>
             <th>Höhenmeter</th>
             <th>Max. Steigung</th>
+            <th>Angemeldete Fahrer</th>
             <th>Aktionen</th>
         </tr>
         <?php foreach ($zukuenftigeRennen as $rennen): ?>
+        <?php $angemeldete = $anmeldungenProRenn[$rennen['RennID']] ?? []; ?>
         <tr>
             <td><?= htmlspecialchars($rennen['RennID']) ?></td>
             <td><?= htmlspecialchars($rennen['Datum']) ?></td>
@@ -142,6 +147,13 @@ $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
             <td><?= htmlspecialchars($rennen['StreckenKM']) ?></td>
             <td><?= htmlspecialchars($rennen['Hoehenmeter']) ?></td>
             <td><?= htmlspecialchars($rennen['MaxSteigung']) ?>%</td>
+            <td>
+                <?php if (empty($angemeldete)): ?>
+                    <em>Keine</em>
+                <?php else: ?>
+                    <?= implode(', ', array_map('htmlspecialchars', $angemeldete)) ?>
+                <?php endif; ?>
+            </td>
             <td>
                 <a href="Fahrer_Rennanmeldung.php?action=anmelden&rennID=<?= $rennen['RennID'] ?>">Anmelden</a>
                 &nbsp;

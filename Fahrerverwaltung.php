@@ -89,6 +89,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['training_speichern'])
     }
 }
 
+// ── Fahrerprämie speichern ────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['praemie_speichern'])) {
+    $fahrerID = (int) ($_POST['fahrerID'] ?? 0);
+    $rennID   = (int) ($_POST['rennID']   ?? 0);
+    $praemie  = $_POST['praemie'] ?? '';
+
+    if (!$fahrerID || !$rennID) {
+        $fehler = "Bitte Fahrer und Rennen auswählen.";
+    } elseif (!is_numeric($praemie) || (float) $praemie < 0) {
+        $fehler = "Bitte eine gültige Prämie (≥ 0) eingeben.";
+    } else {
+        try {
+            praemieSpeichern($verbindung, $fahrerID, $teamName, $rennID, (float) $praemie);
+            $erfolg = "Fahrerprämie erfolgreich gespeichert.";
+        } catch (Exception $e) {
+            $fehler = "Fahrerprämie konnte nicht gespeichert werden: " . $e->getMessage();
+        }
+    }
+    $action = 'praemie';
+}
+
+// ── Trainingsziel hinzufügen ──────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trainingsziel_hinzufuegen'])) {
+    $neuesZiel = trim($_POST['neuesTrainingsziel'] ?? '');
+    if (empty($neuesZiel)) {
+        $fehler = "Bitte ein Trainingsziel eingeben.";
+    } else {
+        try {
+            trainingsZielHinzufuegen($verbindung, $neuesZiel);
+            $erfolg = "Trainingsziel \"" . htmlspecialchars($neuesZiel) . "\" wurde hinzugefügt.";
+        } catch (Exception $e) {
+            $fehler = "Trainingsziel existiert bereits oder konnte nicht gespeichert werden.";
+        }
+    }
+    $action = 'trainingsziele';
+}
+
+// ── Trainingsziel löschen ─────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trainingsziel_loeschen'])) {
+    $ziel = $_POST['trainingsziel'] ?? '';
+    try {
+        trainingsZielLoeschen($verbindung, $ziel);
+        $erfolg = "Trainingsziel \"" . htmlspecialchars($ziel) . "\" wurde gelöscht.";
+    } catch (Exception $e) {
+        $fehler = "Trainingsziel konnte nicht gelöscht werden.";
+    }
+    $action = 'trainingsziele';
+}
+
 // ── Daten für Formular laden (Bearbeiten) ─────────────────
 $fahrerEdit = null;
 $telefonnummernEdit = [];
@@ -103,8 +152,17 @@ if ($action === 'formular' && isset($_GET['fahrerID'])) {
 }
 
 // ── Daten für alle Views laden ────────────────────────────
-$fahrer       = fahrerLaden($verbindung, $teamName);
+$fahrer         = fahrerLaden($verbindung, $teamName);
 $trainingsziele = trainingszieleAbrufen($verbindung);
+
+$praemieFahrerID = 0;
+$rennenFahrer    = [];
+if ($action === 'praemie') {
+    $praemieFahrerID = (int) ($_GET['fahrerID'] ?? $_POST['fahrerID'] ?? 0);
+    if ($praemieFahrerID) {
+        $rennenFahrer = rennenFuerFahrerLaden($verbindung, $praemieFahrerID, $teamName);
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -121,6 +179,8 @@ $trainingsziele = trainingszieleAbrufen($verbindung);
         <a href="Fahrerverwaltung.php?action=liste">Fahrerliste</a> |
         <a href="Fahrerverwaltung.php?action=formular">Neuen Fahrer anlegen</a> |
         <a href="Fahrerverwaltung.php?action=training">Training erfassen</a> |
+        <a href="Fahrerverwaltung.php?action=praemie">Fahrerprämie vergeben</a> |
+        <a href="Fahrerverwaltung.php?action=trainingsziele">Trainingsziele verwalten</a> |
         <a href="Fahrer_Rennanmeldung.php">Rennanmeldung</a> |
         <a href="index.php?logout=1">Abmelden</a>
     </nav>
@@ -266,6 +326,102 @@ $trainingsziele = trainingszieleAbrufen($verbindung);
         <br>
         <input type="submit" name="training_speichern" value="Training speichern">
     </form>
+    <?php endif; ?>
+
+    <?php elseif ($action === 'trainingsziele'): ?>
+    <!-- ── Trainingsziele verwalten ── -->
+    <h2>Trainingsziele verwalten</h2>
+
+    <!-- Neues Trainingsziel hinzufügen -->
+    <form action="Fahrerverwaltung.php" method="post">
+        <label>Neues Trainingsziel:
+            <input type="text" name="neuesTrainingsziel" required
+                value="<?= isset($_POST['neuesTrainingsziel']) ? htmlspecialchars($_POST['neuesTrainingsziel']) : '' ?>">
+        </label>
+        <input type="submit" name="trainingsziel_hinzufuegen" value="Hinzufügen">
+    </form>
+
+    <br>
+
+    <!-- Tabelle bestehender Trainingsziele -->
+    <?php if (empty($trainingsziele)): ?>
+        <p>Noch keine Trainingsziele vorhanden.</p>
+    <?php else: ?>
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>Trainingsziel</th>
+                <th>Aktion</th>
+            </tr>
+            <?php foreach ($trainingsziele as $ziel): ?>
+            <tr>
+                <td><?= htmlspecialchars($ziel) ?></td>
+                <td>
+                    <form action="Fahrerverwaltung.php" method="post" style="display:inline"
+                          onsubmit="return confirm('Trainingsziel wirklich löschen?')">
+                        <input type="hidden" name="trainingsziel" value="<?= htmlspecialchars($ziel) ?>">
+                        <input type="submit" name="trainingsziel_loeschen" value="Löschen">
+                    </form>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+    <?php endif; ?>
+
+    <?php elseif ($action === 'praemie'): ?>
+    <!-- ── Fahrerprämie vergeben ── -->
+    <h2>Fahrerprämie vergeben</h2>
+    <?php if (empty($fahrer)): ?>
+        <p>Keine Fahrer vorhanden. Bitte zuerst Fahrer anlegen.</p>
+    <?php else: ?>
+
+    <!-- Schritt 1: Fahrer auswählen (GET-Reload) -->
+    <form action="Fahrerverwaltung.php" method="get">
+        <input type="hidden" name="action" value="praemie">
+        <label>Fahrer:
+            <select name="fahrerID" required>
+                <option value="">-- Fahrer wählen --</option>
+                <?php foreach ($fahrer as $f): ?>
+                    <option value="<?= $f['FahrerID'] ?>"
+                        <?= $praemieFahrerID === (int) $f['FahrerID'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($f['FahrerName']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <input type="submit" value="Rennen laden">
+    </form>
+
+    <?php if ($praemieFahrerID && empty($rennenFahrer)): ?>
+        <p>Dieser Fahrer hat noch an keinem Rennen teilgenommen.</p>
+    <?php elseif ($praemieFahrerID && !empty($rennenFahrer)): ?>
+
+    <!-- Schritt 2: Rennen und Prämie eingeben (POST) -->
+    <form action="Fahrerverwaltung.php?action=praemie" method="post">
+        <input type="hidden" name="fahrerID" value="<?= $praemieFahrerID ?>">
+
+        <label>Rennen:
+            <select name="rennID" required>
+                <option value="">-- Rennen wählen --</option>
+                <?php foreach ($rennenFahrer as $r): ?>
+                    <option value="<?= $r['RennID'] ?>"
+                        <?= (isset($_POST['rennID']) && (int) $_POST['rennID'] === (int) $r['RennID']) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($r['RennID'] . ' – ' . $r['Datum'] . ' – ' . $r['Startort']) ?>
+                        <?= $r['FahrerPraemie'] !== null ? ' (aktuell: ' . htmlspecialchars($r['FahrerPraemie']) . ' €)' : '' ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label><br>
+
+        <label>Fahrerprämie (€):
+            <input type="number" step="0.01" min="0" name="praemie" required
+                value="<?= isset($_POST['praemie']) ? htmlspecialchars($_POST['praemie']) : '' ?>">
+        </label><br>
+
+        <br>
+        <input type="submit" name="praemie_speichern" value="Prämie speichern">
+    </form>
+    <?php endif; ?>
+
     <?php endif; ?>
 
     <?php endif; ?>

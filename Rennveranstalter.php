@@ -9,6 +9,7 @@ if (!isset($_SESSION['veranstalter_name'])) {
 }
 
 require 'Backend/db.inc.php';
+require 'Backend/csrf.inc.php';
 require 'Backend/veranstalter.inc.php';
 
 $veranstalterName = $_SESSION['veranstalter_name'];
@@ -18,6 +19,7 @@ $erfolg           = "";
 
 // ── Rennen anlegen ────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_speichern'])) {
+    csrfPruefen();
     $datum       = trim($_POST['datum']);
     $startort    = trim($_POST['startort']);
     $streckenKM  = trim($_POST['streckenKM']);
@@ -39,32 +41,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_speichern'])) 
     }
 }
 
+// ── Rennen löschen ───────────────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_loeschen'])) {
+    csrfPruefen();
+    $rennID = (int) $_POST['rennID'];
+    try {
+        rennLoeschen($verbindung, $rennID, $veranstalterName);
+        $erfolg = "Rennen erfolgreich gelöscht.";
+    } catch (Exception $e) {
+        $fehler = "Rennen konnte nicht gelöscht werden: " . $e->getMessage();
+    }
+    $action = 'liste';
+}
+
 // ── Ergebnis speichern ────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ergebnis_speichern'])) {
-    $rennID      = (int) $_POST['rennID'];
-    $ergebnisse  = $_POST['ergebnisse'] ?? [];
+    csrfPruefen();
+    $rennID     = (int) $_POST['rennID'];
+    $ergebnisse = $_POST['ergebnisse'] ?? [];
 
-    $fehlerCount = 0;
-    foreach ($ergebnisse as $eintrag) {
-        $fahrerID    = (int) $eintrag['fahrerID'];
-        $teamName    = trim($eintrag['teamName']);
-        $platzierung = trim($eintrag['platzierung']);
-        $zeit        = trim($eintrag['zeit']);
+    $verbindung->beginTransaction();
+    try {
+        foreach ($ergebnisse as $eintrag) {
+            $fahrerID    = (int) $eintrag['fahrerID'];
+            $teamName    = trim($eintrag['teamName']);
+            $platzierung = trim($eintrag['platzierung']);
+            $zeit        = trim($eintrag['zeit']);
 
-        // Nur speichern wenn beide Felder ausgefüllt sind
-        if ($platzierung !== '' && $zeit !== '') {
-            try {
+            if ($platzierung !== '' && $zeit !== '') {
                 ergebnisSpeichern($verbindung, $rennID, $fahrerID, $teamName, (int) $platzierung, $zeit);
-            } catch (Exception $e) {
-                $fehlerCount++;
             }
         }
-    }
-
-    if ($fehlerCount > 0) {
-        $fehler = "$fehlerCount Ergebnis(se) konnten nicht gespeichert werden.";
-    } else {
+        $verbindung->commit();
         $erfolg = "Ergebnisse erfolgreich gespeichert.";
+    } catch (Exception $e) {
+        $verbindung->rollBack();
+        $fehler = "Ergebnisse konnten nicht gespeichert werden: " . $e->getMessage();
     }
     $action = 'ergebnis';
 }
@@ -147,6 +159,15 @@ if ($action === 'ergebnis' && isset($_GET['rennID'])) {
                     <a href="Rennveranstalter.php?action=ergebnis&rennID=<?= $r['RennID'] ?>">
                         Ergebnisse erfassen
                     </a>
+                    <?php if ($r['VeranstalterName'] === $veranstalterName): ?>
+                    &nbsp;
+                    <form action="Rennveranstalter.php" method="post" style="display:inline"
+                          onsubmit="return confirm('Rennen wirklich löschen? Alle Anmeldungen und Ergebnisse gehen verloren.')">
+                        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
+                        <input type="hidden" name="rennID" value="<?= $r['RennID'] ?>">
+                        <input type="submit" name="rennen_loeschen" value="Löschen">
+                    </form>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>
@@ -157,6 +178,7 @@ if ($action === 'ergebnis' && isset($_GET['rennID'])) {
     <!-- ── Rennen anlegen ── -->
     <h2>Neues Rennen anlegen</h2>
     <form action="Rennveranstalter.php" method="post">
+        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
 
         <label>Datum:
             <input type="date" name="datum" required
@@ -203,6 +225,7 @@ if ($action === 'ergebnis' && isset($_GET['rennID'])) {
         </p>
 
         <form action="Rennveranstalter.php?action=ergebnis" method="post">
+            <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
             <input type="hidden" name="rennID" value="<?= htmlspecialchars($rennEdit['RennID']) ?>">
 
             <table border="1" cellpadding="5">

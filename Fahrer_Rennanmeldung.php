@@ -8,6 +8,7 @@ if (!isset($_SESSION['teamchef_login'])) {
 }
 
 require 'Backend/db.inc.php';
+require 'Backend/csrf.inc.php';
 require 'Backend/fahrer.inc.php';
 require 'Backend/veranstalter.inc.php';
 
@@ -18,32 +19,33 @@ $action   = $_GET['action'] ?? 'liste';
 
 // ── Fahrer zu Rennen anmelden (Speichern) ────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_anmelden'])) {
+    csrfPruefen();
     $rennID    = (int) $_POST['rennID'];
     $fahrerIDs = $_POST['fahrerIDs'] ?? [];
 
     $gespeichert = 0;
+    $stmtCheck  = $verbindung->prepare(
+        "SELECT COUNT(*) FROM nimmtTeil WHERE RennID = ? AND FahrerID = ? AND TeamName = ?"
+    );
+    $stmtInsert = $verbindung->prepare(
+        "INSERT INTO nimmtTeil (RennID, FahrerID, TeamName) VALUES (?, ?, ?)"
+    );
+    $verbindung->beginTransaction();
     try {
         foreach ($fahrerIDs as $fahrerIDRaw) {
-            if ($fahrerIDRaw === '') continue; // "-- kein Fahrer --" überspringen
+            if ($fahrerIDRaw === '') continue;
             $fahrerID = (int) $fahrerIDRaw;
 
-            // Doppelte Einträge überspringen
-            $stmtCheck = $verbindung->prepare(
-                "SELECT COUNT(*) FROM nimmtTeil WHERE RennID = ? AND FahrerID = ?"
-            );
-            $stmtCheck->execute([$rennID, $fahrerID]);
+            $stmtCheck->execute([$rennID, $fahrerID, $teamName]);
             if ($stmtCheck->fetchColumn() > 0) continue;
 
-            // Startnummer wird automatisch vom Trigger vergeben
-            $stmt = $verbindung->prepare(
-                "INSERT INTO nimmtTeil (RennID, FahrerID, TeamName)
-                 VALUES (?, ?, ?)"
-            );
-            $stmt->execute([$rennID, $fahrerID, $teamName]);
+            $stmtInsert->execute([$rennID, $fahrerID, $teamName]);
             $gespeichert++;
         }
+        $verbindung->commit();
         $erfolg = "$gespeichert Fahrer erfolgreich angemeldet.";
     } catch (Exception $e) {
+        $verbindung->rollBack();
         $fehler = "Anmeldung fehlgeschlagen. Prüfe ob der Trigger für Startnummern existiert. (Fehler: " . $e->getMessage() . ")";
     }
     $action = 'liste';
@@ -51,46 +53,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_anmelden'])) {
 
 // ── Anmeldung kopieren ───────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kopieren_speichern'])) {
+    csrfPruefen();
     $quelleRennID = (int) $_POST['quelleRennID'];
     $zielRennID   = (int) $_POST['zielRennID'];
 
-    // Alle Fahrer des Teams aus dem Quellrennen laden
-    $stmt = $verbindung->prepare(
-        "SELECT FahrerID FROM nimmtTeil
-         WHERE RennID = ? AND TeamName = ?"
+    $stmtQuelle = $verbindung->prepare(
+        "SELECT FahrerID FROM nimmtTeil WHERE RennID = ? AND TeamName = ?"
     );
-    $stmt->execute([$quelleRennID, $teamName]);
-    $fahrer = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $stmtQuelle->execute([$quelleRennID, $teamName]);
+    $quellFahrer = $stmtQuelle->fetchAll(PDO::FETCH_COLUMN);
+
+    $stmtCheck  = $verbindung->prepare(
+        "SELECT COUNT(*) FROM nimmtTeil WHERE RennID = ? AND FahrerID = ? AND TeamName = ?"
+    );
+    $stmtInsert = $verbindung->prepare(
+        "INSERT INTO nimmtTeil (RennID, FahrerID, TeamName) VALUES (?, ?, ?)"
+    );
 
     $gespeichert = 0;
-    foreach ($fahrer as $fahrerID) {
-        // Doppelte überspringen
-        $stmtCheck = $verbindung->prepare(
-            "SELECT COUNT(*) FROM nimmtTeil WHERE RennID = ? AND FahrerID = ?"
-        );
-        $stmtCheck->execute([$zielRennID, $fahrerID]);
-        if ($stmtCheck->fetchColumn() > 0) continue;
+    $verbindung->beginTransaction();
+    try {
+        foreach ($quellFahrer as $fahrerID) {
+            $stmtCheck->execute([$zielRennID, $fahrerID, $teamName]);
+            if ($stmtCheck->fetchColumn() > 0) continue;
 
-        // Startnummer wieder per Trigger
-        $stmtInsert = $verbindung->prepare(
-            "INSERT INTO nimmtTeil (RennID, FahrerID, TeamName)
-             VALUES (?, ?, ?)"
-        );
-        $stmtInsert->execute([$zielRennID, $fahrerID, $teamName]);
-        $gespeichert++;
+            $stmtInsert->execute([$zielRennID, $fahrerID, $teamName]);
+            $gespeichert++;
+        }
+        $verbindung->commit();
+        $erfolg = "Anmeldung kopiert – $gespeichert Fahrer übertragen.";
+    } catch (Exception $e) {
+        $verbindung->rollBack();
+        $fehler = "Kopieren fehlgeschlagen: " . $e->getMessage();
     }
-
-    $erfolg = "Anmeldung kopiert – $gespeichert Fahrer übertragen.";
     $action = 'liste';
 }
 
 // ── Daten laden ───────────────────────────────────────────
-$zukuenftigeRennen = rennenLadenZukunft($verbindung);
-$fahrer            = fahrerLaden($verbindung, $teamName);
+$zukuenftigeRennen  = rennenLadenZukunft($verbindung);
+$fahrer             = fahrerLaden($verbindung, $teamName);
+$anmeldungenProRenn = angemeldteFahrerProRennen($verbindung, $teamName);
 
 // Anzahl Zeilen für Anmeldetabelle
 $anzahlZeilen = 0;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['anzahl_bestaetigen'])) {
+    csrfPruefen();
     $anzahlZeilen = max(0, (int) $_POST['anzahlFahrer']);
     $action = 'anmelden';
 }
@@ -98,12 +105,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['anzahl_bestaetigen'])
 $gewaehlteRennID = (int) ($_GET['rennID'] ?? $_POST['rennID'] ?? 0);
 $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
 ?>
+
+
 <!DOCTYPE html>
 <html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <title>Rennanmeldung</title>
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <title>Rennanmeldung</title>
+    </head>
 <body>
 
 <h1>Rennanmeldung – Team: <?= htmlspecialchars($teamName) ?></h1>
@@ -132,9 +141,11 @@ $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
             <th>km</th>
             <th>Höhenmeter</th>
             <th>Max. Steigung</th>
+            <th>Angemeldete Fahrer</th>
             <th>Aktionen</th>
         </tr>
         <?php foreach ($zukuenftigeRennen as $rennen): ?>
+        <?php $angemeldete = $anmeldungenProRenn[$rennen['RennID']] ?? []; ?>
         <tr>
             <td><?= htmlspecialchars($rennen['RennID']) ?></td>
             <td><?= htmlspecialchars($rennen['Datum']) ?></td>
@@ -142,6 +153,13 @@ $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
             <td><?= htmlspecialchars($rennen['StreckenKM']) ?></td>
             <td><?= htmlspecialchars($rennen['Hoehenmeter']) ?></td>
             <td><?= htmlspecialchars($rennen['MaxSteigung']) ?>%</td>
+            <td>
+                <?php if (empty($angemeldete)): ?>
+                    <em>Keine</em>
+                <?php else: ?>
+                    <?= implode(', ', array_map('htmlspecialchars', $angemeldete)) ?>
+                <?php endif; ?>
+            </td>
             <td>
                 <a href="Fahrer_Rennanmeldung.php?action=anmelden&rennID=<?= $rennen['RennID'] ?>">Anmelden</a>
                 &nbsp;
@@ -162,6 +180,7 @@ if (!$rennen):
 ?>
 <h2>Anmeldung für: <?= htmlspecialchars($rennen['Startort']) ?> (<?= htmlspecialchars($rennen['Datum']) ?>)</h2>
 <form action="Fahrer_Rennanmeldung.php?action=anmelden" method="post">
+    <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
     <input type="hidden" name="rennID" value="<?= $gewaehlteRennID ?>">
     <label>Anzahl anzumeldender Fahrer:
         <input type="number" name="anzahlFahrer" min="1" max="<?= count($fahrer) ?>" required>
@@ -174,6 +193,7 @@ if (!$rennen):
 <!-- ── Schritt 2: Fahrer per Combobox auswählen ── -->
 <h2>Fahrer auswählen für: <?= htmlspecialchars($rennen['Startort']) ?> (<?= htmlspecialchars($rennen['Datum']) ?>)</h2>
 <form action="Fahrer_Rennanmeldung.php" method="post">
+    <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
     <input type="hidden" name="rennID" value="<?= $gewaehlteRennID ?>">
     <table border="1" cellpadding="5">
         <tr>
@@ -215,6 +235,7 @@ if (empty($zielRennen)):
     <p>Keine weiteren zukünftigen Rennen vorhanden.</p>
 <?php else: ?>
 <form action="Fahrer_Rennanmeldung.php" method="post">
+    <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
     <input type="hidden" name="quelleRennID" value="<?= $quelleRennID ?>">
     <label>Zielrennen:
         <select name="zielRennID" required>

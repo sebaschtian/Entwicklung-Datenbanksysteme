@@ -104,6 +104,21 @@ function fahrerZuRennenLaden($verbindung, $rennID)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
+// Lädt die Ergebnisse eines Rennens, sortiert nach Platzierung
+function ergebnisseLaden($verbindung, $rennID)
+{
+    $stmt = $verbindung->prepare(
+        "SELECT nt.Startnummer, nt.FahrerID, nt.TeamName, f.FahrerName,
+                nt.Platzierung, nt.gefahreneZeit
+         FROM nimmtTeil nt
+         JOIN Fahrer f ON nt.FahrerID = f.FahrerID AND nt.TeamName = f.TeamName
+         WHERE nt.RennID = ?
+         ORDER BY nt.Platzierung ASC, nt.Startnummer ASC"
+    );
+    $stmt->execute([$rennID]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
 // Speichert das Ergebnis eines Fahrers – einmaliger Vorgang, kein UPDATE
 function ergebnisSpeichern($verbindung, $rennID, $fahrerID, $teamName, $platzierung, $gefahreneZeit)
 {

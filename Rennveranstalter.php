@@ -104,6 +104,7 @@ if ($action === 'ergebnis' && isset($_GET['rennID'])) {
     <nav>
         <a href="Rennveranstalter.php?action=liste">Rennenliste</a> |
         <a href="Rennveranstalter.php?action=formular">Neues Rennen anlegen</a> |
+        <a href="Rennergebnisse.php">Ergebnisauswertung</a> |
         <a href="index.php?logout=1">Abmelden</a>
     </nav>
     <hr>

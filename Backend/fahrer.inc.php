@@ -6,12 +6,14 @@
 function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu)
 {
     if ($isNeu) {
+        $ergebnis   = $verbindung->query("SELECT COALESCE(MAX(FahrerID), 0) + 1 FROM Fahrer");
+        $naechsteID = max(1, (int) $ergebnis->fetchColumn(0));
         $stmt = $verbindung->prepare(
-            "INSERT INTO Fahrer (FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)
-             VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO Fahrer (FahrerID, FahrerName, OrtName, PLZ, StrasseHausnummer, TeamName)
+             VALUES (?, ?, ?, ?, ?, ?)"
         );
-        $stmt->execute([$fahrerName, $ortName, $plz, $strasseHausnummer, $teamName]);
-        return (int) $verbindung->lastInsertId();
+        $stmt->execute([$naechsteID, $fahrerName, $ortName, $plz, $strasseHausnummer, $teamName]);
+        return $naechsteID;
     } else {
         $stmt = $verbindung->prepare(
             "UPDATE Fahrer SET FahrerName = ?, OrtName = ?, PLZ = ?, StrasseHausnummer = ?
@@ -44,26 +46,11 @@ function fahrerLadenEinzeln($verbindung, $fahrerID, $teamName)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-// Löscht einen Fahrer und seine Telefonnummern (Transaktion für Konsistenz)
+// Löscht einen Fahrer und seine Telefonnummern via Stored Procedure
 function fahrerLoeschen($verbindung, $fahrerID, $teamName)
 {
-    $verbindung->beginTransaction();
-    try {
-        $stmt = $verbindung->prepare(
-            "DELETE FROM Telefonnummer WHERE FahrerID = ? AND TeamName = ?"
-        );
-        $stmt->execute([$fahrerID, $teamName]);
-
-        $stmt = $verbindung->prepare(
-            "DELETE FROM Fahrer WHERE FahrerID = ? AND TeamName = ?"
-        );
-        $stmt->execute([$fahrerID, $teamName]);
-
-        $verbindung->commit();
-    } catch (Exception $e) {
-        $verbindung->rollBack();
-        throw $e;
-    }
+    $stmt = $verbindung->prepare("CALL FahrerLoeschen(?, ?)");
+    $stmt->execute([$fahrerID, $teamName]);
 }
 
 // Lädt alle Telefonnummern eines Fahrers
@@ -159,26 +146,3 @@ function angemeldteFahrerProRennen($verbindung, $teamName)
     return $map;
 }
 
-// Lädt alle Rennen, an denen ein Fahrer teilgenommen hat (inkl. aktueller Prämie)
-function rennenFuerFahrerLaden($verbindung, $fahrerID, $teamName)
-{
-    $stmt = $verbindung->prepare(
-        "SELECT n.RennID, r.Datum, r.Startort, n.FahrerPraemie
-         FROM nimmtTeil n
-         JOIN Rennen r ON n.RennID = r.RennID
-         WHERE n.FahrerID = ? AND n.TeamName = ?
-         ORDER BY r.Datum DESC"
-    );
-    $stmt->execute([$fahrerID, $teamName]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// Setzt die Fahrerprämie für ein bestimmtes Rennen (überschreibt vorhandenen Wert)
-function praemieSpeichern($verbindung, $fahrerID, $teamName, $rennID, $praemie)
-{
-    $stmt = $verbindung->prepare(
-        "UPDATE nimmtTeil SET FahrerPraemie = ?
-         WHERE FahrerID = ? AND TeamName = ? AND RennID = ?"
-    );
-    $stmt->execute([$praemie, $fahrerID, $teamName, $rennID]);
-}

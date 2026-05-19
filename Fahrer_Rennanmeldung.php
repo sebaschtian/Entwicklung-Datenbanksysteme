@@ -51,6 +51,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_anmelden'])) {
     $action = 'liste';
 }
 
+// ── Anmeldung bearbeiten (Überschreiben) ─────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bearbeiten_speichern'])) {
+    csrfPruefen();
+    $rennID    = (int) $_POST['rennID'];
+    $fahrerIDs = $_POST['fahrerIDs'] ?? [];
+
+    $verbindung->beginTransaction();
+    try {
+        $stmtDel = $verbindung->prepare(
+            "DELETE FROM nimmtTeil WHERE RennID = ? AND TeamName = ?"
+        );
+        $stmtDel->execute([$rennID, $teamName]);
+
+        $stmtIns = $verbindung->prepare(
+            "INSERT INTO nimmtTeil (RennID, FahrerID, TeamName) VALUES (?, ?, ?)"
+        );
+        $gespeichert = 0;
+        foreach ($fahrerIDs as $fahrerIDRaw) {
+            if ($fahrerIDRaw === '') continue;
+            $stmtIns->execute([$rennID, (int) $fahrerIDRaw, $teamName]);
+            $gespeichert++;
+        }
+        $verbindung->commit();
+        $erfolg = "Anmeldung aktualisiert – $gespeichert Fahrer angemeldet.";
+    } catch (Exception $e) {
+        $verbindung->rollBack();
+        $fehler = "Bearbeitung fehlgeschlagen: " . $e->getMessage();
+    }
+    $action = 'liste';
+}
+
 // ── Anmeldung kopieren ───────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kopieren_speichern'])) {
     csrfPruefen();
@@ -102,8 +133,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['anzahl_bestaetigen'])
     $action = 'anmelden';
 }
 
-$gewaehlteRennID = (int) ($_GET['rennID'] ?? $_POST['rennID'] ?? 0);
-$quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
+$gewaehlteRennID  = (int) ($_GET['rennID'] ?? $_POST['rennID'] ?? 0);
+$quelleRennID     = (int) ($_GET['quelleRennID'] ?? 0);
+$bearbeitenRennID = (int) ($_GET['rennID'] ?? 0);
+
+$bereitsAngemeldet = [];
+if ($action === 'bearbeiten' && $bearbeitenRennID) {
+    $stmtAngemeldet = $verbindung->prepare(
+        "SELECT FahrerID FROM nimmtTeil WHERE RennID = ? AND TeamName = ?"
+    );
+    $stmtAngemeldet->execute([$bearbeitenRennID, $teamName]);
+    $bereitsAngemeldet = array_map('intval', $stmtAngemeldet->fetchAll(PDO::FETCH_COLUMN));
+}
 ?>
 
 
@@ -163,6 +204,8 @@ $quelleRennID    = (int) ($_GET['quelleRennID'] ?? 0);
             <td>
                 <a href="Fahrer_Rennanmeldung.php?action=anmelden&rennID=<?= $rennen['RennID'] ?>">Anmelden</a>
                 &nbsp;
+                <a href="Fahrer_Rennanmeldung.php?action=bearbeiten&rennID=<?= $rennen['RennID'] ?>">Bearbeiten</a>
+                &nbsp;
                 <a href="Fahrer_Rennanmeldung.php?action=kopieren&quelleRennID=<?= $rennen['RennID'] ?>">Kopieren</a>
             </td>
         </tr>
@@ -218,6 +261,42 @@ if (!$rennen):
     </table>
     <br>
     <input type="submit" name="fahrer_anmelden" value="Alle Fahrer anmelden">
+</form>
+<a href="Fahrer_Rennanmeldung.php">Zurück</a>
+<?php endif; ?>
+
+<?php elseif ($action === 'bearbeiten'): ?>
+<!-- ── Anmeldung bearbeiten ── -->
+<?php
+$rennenEdit = rennenLadenEinzeln($verbindung, $bearbeitenRennID);
+if (!$rennenEdit):
+    echo '<p style="color:red;">Rennen nicht gefunden.</p>';
+elseif (empty($fahrer)):
+    echo '<p>Keine Fahrer im Team vorhanden.</p>';
+else:
+?>
+<h2>Anmeldung bearbeiten: <?= htmlspecialchars($rennenEdit['Startort']) ?> (<?= htmlspecialchars($rennenEdit['Datum']) ?>)</h2>
+<p>Haken setzen = angemeldet. Beim Speichern wird die bisherige Anmeldung vollständig überschrieben.</p>
+<form action="Fahrer_Rennanmeldung.php" method="post">
+    <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
+    <input type="hidden" name="rennID" value="<?= $bearbeitenRennID ?>">
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>Fahrer</th>
+            <th>Angemeldet</th>
+        </tr>
+        <?php foreach ($fahrer as $f): ?>
+        <tr>
+            <td><?= htmlspecialchars($f['FahrerName']) ?></td>
+            <td>
+                <input type="checkbox" name="fahrerIDs[]" value="<?= $f['FahrerID'] ?>"
+                    <?= in_array((int) $f['FahrerID'], $bereitsAngemeldet) ? 'checked' : '' ?>>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </table>
+    <br>
+    <input type="submit" name="bearbeiten_speichern" value="Anmeldung speichern">
 </form>
 <a href="Fahrer_Rennanmeldung.php">Zurück</a>
 <?php endif; ?>

@@ -1,5 +1,5 @@
 <?php
-// Autor: Sebastian Rieg
+// Autor: Marlies Achterhold
 session_start();
 
 if (!isset($_SESSION['veranstalter_name'])) {

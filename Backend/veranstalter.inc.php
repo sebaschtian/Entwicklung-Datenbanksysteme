@@ -60,15 +60,17 @@ function rennLoeschen($verbindung, $rennID, $veranstalterName)
     }
 }
 
-// Legt ein neues Rennen an; RennID wird per AUTO_INCREMENT vergeben
+// Legt ein neues Rennen an; RennID wird manuell berechnet (kein AUTO_INCREMENT)
 function rennAnlegen($verbindung, $veranstalterName, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung)
 {
+    $ergebnis   = $verbindung->query("SELECT COALESCE(MAX(RennID), 0) + 1 FROM Rennen");
+    $naechsteID = max(1, (int) $ergebnis->fetchColumn(0));
     $stmt = $verbindung->prepare(
-        "INSERT INTO Rennen (Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung, VeranstalterName)
-         VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO Rennen (RennID, Datum, Startort, StreckenKM, Hoehenmeter, MaxSteigung, VeranstalterName)
+         VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
-    $stmt->execute([$datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung, $veranstalterName]);
-    return (int) $verbindung->lastInsertId();
+    $stmt->execute([$naechsteID, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung, $veranstalterName]);
+    return $naechsteID;
 }
 
 // Lädt alle Rennen

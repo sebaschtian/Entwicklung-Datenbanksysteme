@@ -2,7 +2,7 @@
 // Autor: Rieg
 $username = "gruppe6";
 $password = "3J8+dNy8i3#u";
-$host = "92.205.168.232";
+$host = "92.205.168.232"; // funktioniert zuverlässiger als mit "localhost"
 $db_name = "gruppe6";
 $serverdaten = "mysql:host=$host;dbname=$db_name;charset=utf8";
 

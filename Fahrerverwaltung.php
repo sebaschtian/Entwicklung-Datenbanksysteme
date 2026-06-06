@@ -93,36 +93,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['training_speichern'])
     }
 }
 
-// ── Trainingsziel hinzufügen ──────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trainingsziel_hinzufuegen'])) {
-    csrfPruefen();
-    $neuesZiel = trim($_POST['neuesTrainingsziel'] ?? '');
-    if (empty($neuesZiel)) {
-        $fehler = "Bitte ein Trainingsziel eingeben.";
-    } else {
-        try {
-            trainingsZielHinzufuegen($verbindung, $neuesZiel);
-            $erfolg = "Trainingsziel \"$neuesZiel\" wurde hinzugefügt.";
-        } catch (Exception $e) {
-            $fehler = "Trainingsziel existiert bereits oder konnte nicht gespeichert werden.";
-        }
-    }
-    $action = 'trainingsziele';
-}
-
-// ── Trainingsziel löschen ─────────────────────────────────
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trainingsziel_loeschen'])) {
-    csrfPruefen();
-    $ziel = $_POST['trainingsziel'] ?? '';
-    try {
-        trainingsZielLoeschen($verbindung, $ziel);
-        $erfolg = "Trainingsziel \"$ziel\" wurde gelöscht.";
-    } catch (Exception $e) {
-        $fehler = "Trainingsziel konnte nicht gelöscht werden.";
-    }
-    $action = 'trainingsziele';
-}
-
 // ── Daten für Formular laden (Bearbeiten) ─────────────────
 $fahrerEdit = null;
 $telefonnummernEdit = [];
@@ -138,9 +108,7 @@ if ($action === 'formular' && isset($_GET['fahrerID'])) {
 
 // ── Daten für alle Views laden ────────────────────────────
 $fahrer         = fahrerLaden($verbindung, $teamName);
-$trainingsziele = ($action === 'training' || $action === 'trainingsziele')
-    ? trainingszieleAbrufen($verbindung)
-    : [];
+$trainingsziele = ($action === 'training') ? trainingszieleAbrufen($verbindung) : [];
 
 ?>
 
@@ -158,7 +126,6 @@ $trainingsziele = ($action === 'training' || $action === 'trainingsziele')
         <a href="Fahrerverwaltung.php?action=liste">Fahrerliste</a> |
         <a href="Fahrerverwaltung.php?action=formular">Neuen Fahrer anlegen</a> |
         <a href="Fahrerverwaltung.php?action=training">Training erfassen</a> |
-<a href="Fahrerverwaltung.php?action=trainingsziele">Trainingsziele verwalten</a> |
         <a href="Fahrer_Rennanmeldung.php">Rennanmeldung</a> |
         <a href="index.php?logout=1">Abmelden</a>
     </nav>
@@ -307,47 +274,6 @@ $trainingsziele = ($action === 'training' || $action === 'trainingsziele')
         <br>
         <input type="submit" name="training_speichern" value="Training speichern">
     </form>
-    <?php endif; ?>
-
-    <?php elseif ($action === 'trainingsziele'): ?>
-    <!-- ── Trainingsziele verwalten ── -->
-    <h2>Trainingsziele verwalten</h2>
-
-    <!-- Neues Trainingsziel hinzufügen -->
-    <form action="Fahrerverwaltung.php" method="post">
-        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
-        <label>Neues Trainingsziel:
-            <input type="text" name="neuesTrainingsziel" required
-                value="<?= isset($_POST['neuesTrainingsziel']) ? htmlspecialchars($_POST['neuesTrainingsziel']) : '' ?>">
-        </label>
-        <input type="submit" name="trainingsziel_hinzufuegen" value="Hinzufügen">
-    </form>
-
-    <br>
-
-    <!-- Tabelle bestehender Trainingsziele -->
-    <?php if (empty($trainingsziele)): ?>
-        <p>Noch keine Trainingsziele vorhanden.</p>
-    <?php else: ?>
-        <table border="1" cellpadding="5">
-            <tr>
-                <th>Trainingsziel</th>
-                <th>Aktion</th>
-            </tr>
-            <?php foreach ($trainingsziele as $ziel): ?>
-            <tr>
-                <td><?= htmlspecialchars($ziel) ?></td>
-                <td>
-                    <form action="Fahrerverwaltung.php" method="post" style="display:inline"
-                          onsubmit="return confirm('Trainingsziel wirklich löschen?')">
-                        <input type="hidden" name="csrf_token" value="<?= csrfToken() ?>">
-                        <input type="hidden" name="trainingsziel" value="<?= htmlspecialchars($ziel) ?>">
-                        <input type="submit" name="trainingsziel_loeschen" value="Löschen">
-                    </form>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-        </table>
     <?php endif; ?>
 
     <?php endif; ?>

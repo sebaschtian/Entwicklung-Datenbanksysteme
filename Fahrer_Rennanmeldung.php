@@ -2,6 +2,7 @@
 // Autor: Sebastian Rieg
 session_start();
 
+// Guard: only logged-in coaches may access this page.
 if (!isset($_SESSION['teamchef_login'])) {
     header('Location: index.php');
     exit;
@@ -17,7 +18,7 @@ $fehler   = "";
 $erfolg   = "";
 $action   = $_GET['action'] ?? 'liste';
 
-// ── Fahrer zu Rennen anmelden (Speichern) ────────────────
+// ── Register drivers for a race (skips already registered ones) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_anmelden'])) {
     csrfPruefen();
     $rennID    = (int) $_POST['rennID'];
@@ -51,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_anmelden'])) {
     $action = 'liste';
 }
 
-// ── Anmeldung bearbeiten (Überschreiben) ─────────────────
+// ── Edit registration (delete + re-insert for this team) ──
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bearbeiten_speichern'])) {
     csrfPruefen();
     $rennID    = (int) $_POST['rennID'];
@@ -82,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bearbeiten_speichern'
     $action = 'liste';
 }
 
-// ── Anmeldung kopieren ───────────────────────────────────
+// ── Copy registration from one race to another ────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kopieren_speichern'])) {
     csrfPruefen();
     $quelleRennID = (int) $_POST['quelleRennID'];
@@ -120,12 +121,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kopieren_speichern'])
     $action = 'liste';
 }
 
-// ── Daten laden ───────────────────────────────────────────
+// ── Load base data for all views ──────────────────────────
 $zukuenftigeRennen  = rennenLadenZukunft($verbindung);
 $fahrer             = fahrerLaden($verbindung, $teamName);
 $anmeldungenProRenn = angemeldteFahrerProRennen($verbindung, $teamName);
 
-// Anzahl Zeilen für Anmeldetabelle
+// Step 1 of registration: user picks how many drivers to add.
 $anzahlZeilen = 0;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['anzahl_bestaetigen'])) {
     csrfPruefen();
@@ -137,6 +138,7 @@ $gewaehlteRennID  = (int) ($_GET['rennID'] ?? $_POST['rennID'] ?? 0);
 $quelleRennID     = (int) ($_GET['quelleRennID'] ?? 0);
 $bearbeitenRennID = (int) ($_GET['rennID'] ?? 0);
 
+// Pre-load currently registered drivers for the edit view (checkbox state).
 $bereitsAngemeldet = [];
 if ($action === 'bearbeiten' && $bearbeitenRennID) {
     $stmtAngemeldet = $verbindung->prepare(

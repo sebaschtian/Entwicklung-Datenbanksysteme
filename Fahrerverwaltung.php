@@ -2,7 +2,7 @@
 // Autor: Marlies Achterholt
 session_start();
 
-// Zugriffschutz – nur angemeldete Teamchefs
+// Guard: only logged-in coaches may access this page.
 if (!isset($_SESSION['teamchef_login'])) {
     header('Location: index.php');
     exit;
@@ -17,7 +17,7 @@ $action   = $_GET['action'] ?? 'liste';
 $fehler   = "";
 $erfolg   = "";
 
-// ── Fahrer speichern (neu oder ändern) ───────────────────
+// ── Save driver (insert or update) ───────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) {
     csrfPruefen();
     $fahrerIDRaw      = $_POST['fahrerID'] ?? '';
@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) 
     $plz              = trim($_POST['plz']);
     $strasseHausnummer = trim($_POST['strasseHausnummer']);
     $nummern          = $_POST['telefonnummern'] ?? [];
-    $isNeu            = ($fahrerIDRaw === ''); // leer = neuer Fahrer, "0" = Bearbeiten von ID 0
+    $isNeu            = ($fahrerIDRaw === ''); // empty string = new driver; numeric = edit existing
 
     if (empty($fahrerName) || empty($ortName) || empty($plz) || empty($strasseHausnummer)) {
         $fehler = "Bitte alle Pflichtfelder ausfüllen.";
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_speichern'])) 
     }
 }
 
-// ── Fahrer löschen ────────────────────────────────────────
+// ── Delete driver ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_loeschen'])) {
     csrfPruefen();
     $fahrerID = (int) $_POST['fahrerID'];
@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['fahrer_loeschen'])) {
     $action = 'liste';
 }
 
-// ── Training erfassen ─────────────────────────────────────
+// ── Record training session ───────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['training_speichern'])) {
     csrfPruefen();
     $fahrerIDRaw  = $_POST['fahrerID'] ?? '';
@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['training_speichern'])
     }
 }
 
-// ── Daten für Formular laden (Bearbeiten) ─────────────────
+// ── Load driver data for the edit form ────────────────────
 $fahrerEdit = null;
 $telefonnummernEdit = [];
 if ($action === 'formular' && isset($_GET['fahrerID'])) {
@@ -106,7 +106,7 @@ if ($action === 'formular' && isset($_GET['fahrerID'])) {
     }
 }
 
-// ── Daten für alle Views laden ────────────────────────────
+// ── Load data for all views ───────────────────────────────
 $fahrer         = fahrerLaden($verbindung, $teamName);
 $trainingsziele = ($action === 'training') ? trainingszieleAbrufen($verbindung) : [];
 

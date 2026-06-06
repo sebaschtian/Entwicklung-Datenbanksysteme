@@ -2,7 +2,7 @@
 // Autor: Marlies Achterholt
 session_start();
 
-// Zugriffschutz – nur angemeldete Rennveranstalter
+// Guard: only logged-in organizers may access this page.
 if (!isset($_SESSION['veranstalter_name'])) {
     header('Location: index.php');
     exit;
@@ -17,7 +17,7 @@ $action           = $_GET['action'] ?? 'liste';
 $fehler           = "";
 $erfolg           = "";
 
-// ── Rennen anlegen ────────────────────────────────────────
+// ── Create new race ───────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_speichern'])) {
     csrfPruefen();
     $datum       = trim($_POST['datum']);
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_speichern'])) 
     }
 }
 
-// ── Rennen löschen ───────────────────────────────────────
+// ── Delete race ───────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_loeschen'])) {
     csrfPruefen();
     $rennID = (int) $_POST['rennID'];
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['rennen_loeschen'])) {
     $action = 'liste';
 }
 
-// ── Ergebnis speichern ────────────────────────────────────
+// ── Save race results ─────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ergebnis_speichern'])) {
     csrfPruefen();
     $rennID     = (int) $_POST['rennID'];
@@ -81,11 +81,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ergebnis_speichern'])
     $action = 'ergebnis';
 }
 
-// ── Daten laden ───────────────────────────────────────────
+// ── Load data for all views ───────────────────────────────
 $rennen     = rennenLaden($verbindung);
 $rennEdit   = null;
 $fahrer     = [];
 
+// Load race + drivers when entering the results view via GET or staying after a POST save.
 if ($action === 'ergebnis' && isset($_GET['rennID'])) {
     $rennID   = (int) $_GET['rennID'];
     $rennEdit = rennenLadenEinzeln($verbindung, $rennID);
@@ -96,7 +97,6 @@ if ($action === 'ergebnis' && isset($_GET['rennID'])) {
         $fahrer = fahrerZuRennenLaden($verbindung, $rennID);
     }
 } elseif ($action === 'ergebnis' && isset($_POST['rennID'])) {
-    // Nach dem Speichern auf der Ergebnisseite bleiben
     $rennID   = (int) $_POST['rennID'];
     $rennEdit = rennenLadenEinzeln($verbindung, $rennID);
     $fahrer   = fahrerZuRennenLaden($verbindung, $rennID);

@@ -1,4 +1,5 @@
-DELIMITER //
+DELIMITER 
+// Autor: Marlies Achterholt
 
 CREATE PROCEDURE FahrerLoeschen(
     IN p_FahrerID INT,

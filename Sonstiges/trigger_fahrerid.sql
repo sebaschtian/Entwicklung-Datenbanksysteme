@@ -1,4 +1,4 @@
--- Autor: Marlies Achterhold
+-- Autor: Marlies Achterholt
 -- Trigger: Vergibt automatisch die nächste FahrerID pro Team
 -- Die FahrerIDs beginnen bei 1 und werden pro Team aufsteigend vergeben
 

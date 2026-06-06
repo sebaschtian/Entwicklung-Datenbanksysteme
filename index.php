@@ -1,4 +1,5 @@
 <?php
+// Autor: Sebastian Rieg
 
 session_start();
  
@@ -8,19 +9,19 @@ require 'Backend/team.inc.php';
 require 'Backend/fahrer.inc.php';
 require 'Backend/veranstalter.inc.php';
  
-// Logout
+// Destroy session on logout; start a fresh one so CSRF token generation still works.
 if (isset($_GET['logout'])) {
     session_unset();
     session_destroy();
-    session_start(); // frische Session für CSRF-Token auf der Startseite
+    session_start();
 }
- 
+
 $fehlerTeam         = "";
 $fehlerTeamchef     = "";
 $fehlerVeranstalter = "";
 $erfolg             = "";
- 
-// ── Team anlegen ──────────────────────────────────────────
+
+// ── Register team ─────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['team_anlegen'])) {
     csrfPruefen();
     $teamName     = trim($_POST['teamname']);
@@ -38,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['team_anlegen'])) {
     }
 }
  
-// ── Login Teamchef ────────────────────────────────────────
+// ── Coach login ───────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_anmelden'])) {
     csrfPruefen();
     $loginName = trim($_POST['loginname']);
@@ -56,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['teamchef_anmelden']))
     }
 }
  
-// ── Login Rennveranstalter ────────────────────────────────
+// ── Organizer login ───────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_anmelden'])) {
     csrfPruefen();
     $veranstalterName = trim($_POST['veranstalter_name']);
@@ -72,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_anmelden
     }
 }
 
-// ── Registrierung Rennveranstalter ────────────────────────
+// ── Organizer registration ────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['veranstalter_registrieren'])) {
     csrfPruefen();
     $veranstalterName = trim($_POST['veranstalter_name']);

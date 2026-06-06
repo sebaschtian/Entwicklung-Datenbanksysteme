@@ -1,7 +1,8 @@
 <?php
-// Autor: Marlies Achterhold
+// Autor: Marlies Achterholt
 session_start();
 
+// Guard: only logged-in organizers may access this page.
 if (!isset($_SESSION['veranstalter_name'])) {
     header('Location: index.php');
     exit;
@@ -13,6 +14,7 @@ require 'Backend/veranstalter.inc.php';
 $veranstalterName = $_SESSION['veranstalter_name'];
 $fehler           = "";
 
+// Load all races for the selection table; load results only when a rennID is given.
 $alleRennen  = rennenLaden($verbindung);
 $rennID      = isset($_GET['rennID']) ? (int) $_GET['rennID'] : null;
 $rennEdit    = null;

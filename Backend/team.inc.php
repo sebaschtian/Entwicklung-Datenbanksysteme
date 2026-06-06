@@ -1,7 +1,6 @@
 <?php
-// Autor: Sebastian Rieg
-
-// Prüft ob ein Team bereits existiert
+// Auor: Sebastian Rieg
+// Returns true if a team with this name already exists.
 function teamExistiert($verbindung, $teamName)
 {
     $stmt = $verbindung->prepare("SELECT TeamName FROM Team WHERE TeamName = ?");
@@ -9,20 +8,18 @@ function teamExistiert($verbindung, $teamName)
     return $stmt->rowCount() > 0;
 }
 
-// Trägt neues Team und Teamchef in die Datenbank ein
+// Registers a new team and its coach in a single transaction.
 function teamEintragen($verbindung, $teamName, $nameTeamchef, $loginName, $kennwort)
 {
     $kennwortHash = password_hash($kennwort, PASSWORD_DEFAULT);
 
     $verbindung->beginTransaction();
     try {
-        // Insert in Team
         $stmt = $verbindung->prepare("INSERT INTO Team (TeamName) VALUES (?)");
         $stmt->execute([$teamName]);
 
-        // Insert in Teamchef
         $stmt = $verbindung->prepare(
-            "INSERT INTO Teamchef (NameTeamchef, LoginName, Kennwort, TeamName) 
+            "INSERT INTO Teamchef (NameTeamchef, LoginName, Kennwort, TeamName)
              VALUES (?, ?, ?, ?)"
         );
         $stmt->execute([$nameTeamchef, $loginName, $kennwortHash, $teamName]);
@@ -34,17 +31,18 @@ function teamEintragen($verbindung, $teamName, $nameTeamchef, $loginName, $kennw
     }
 }
 
+// Verifies login; returns the coach row (including TeamName) on success, or false.
 function teamchefLogin($verbindung, $loginName, $kennwort)
 {
     $stmt = $verbindung->prepare(
-        "SELECT LoginName, Kennwort, TeamName 
+        "SELECT LoginName, Kennwort, TeamName
          FROM Teamchef WHERE LoginName = ?"
     );
     $stmt->execute([$loginName]);
     $teamchef = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($teamchef && password_verify($kennwort, $teamchef['Kennwort'])) {
-        return $teamchef; // gibt Array zurück bei Erfolg
+        return $teamchef;
     }
     return false;
 }

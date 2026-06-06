@@ -1,8 +1,7 @@
 <?php
+// ── Drivers ───────────────────────────────────────────────
 // Autor: Sebastian Rieg
-
-// Speichert oder ändert einen Fahrer; gibt die FahrerID zurück
-// Wenn isNeu = true → INSERT, sonst → UPDATE
+// INSERT new driver (FahrerID assigned by trigger) or UPDATE existing one; returns FahrerID.
 function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortName, $plz, $strasseHausnummer, $isNeu)
 {
     if ($isNeu) {
@@ -24,7 +23,7 @@ function fahrerSpeichern($verbindung, $fahrerID, $teamName, $fahrerName, $ortNam
     }
 }
 
-// Lädt alle Fahrer eines Teams
+// Returns all drivers of a team, ordered by name.
 function fahrerLaden($verbindung, $teamName)
 {
     $stmt = $verbindung->prepare(
@@ -35,7 +34,7 @@ function fahrerLaden($verbindung, $teamName)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Lädt einen einzelnen Fahrer anhand FahrerID und TeamName
+// Returns a single driver by FahrerID and TeamName, or false if not found.
 function fahrerLadenEinzeln($verbindung, $fahrerID, $teamName)
 {
     $stmt = $verbindung->prepare(
@@ -46,14 +45,16 @@ function fahrerLadenEinzeln($verbindung, $fahrerID, $teamName)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-// Löscht einen Fahrer und seine Telefonnummern via Stored Procedure
+// Deletes a driver and all related data (phone numbers, training, race entries) via stored procedure.
 function fahrerLoeschen($verbindung, $fahrerID, $teamName)
 {
     $stmt = $verbindung->prepare("CALL FahrerLoeschen(?, ?)");
     $stmt->execute([$fahrerID, $teamName]);
 }
 
-// Lädt alle Telefonnummern eines Fahrers
+// ── Phone numbers ─────────────────────────────────────────
+
+// Returns all phone numbers for a driver.
 function telefonnummernLaden($verbindung, $fahrerID, $teamName)
 {
     $stmt = $verbindung->prepare(
@@ -64,7 +65,7 @@ function telefonnummernLaden($verbindung, $fahrerID, $teamName)
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }
 
-// Ersetzt alle Telefonnummern eines Fahrers (löschen + neu einfügen, atomar)
+// Replaces all phone numbers for a driver atomically (delete + re-insert in one transaction).
 function telefonnummernSpeichern($verbindung, $fahrerID, $teamName, array $nummern)
 {
     $verbindung->beginTransaction();
@@ -90,7 +91,9 @@ function telefonnummernSpeichern($verbindung, $fahrerID, $teamName, array $numme
     }
 }
 
-// Lädt alle verfügbaren Trainingsziele aus der Lookup-Tabelle
+// ── Training ──────────────────────────────────────────────
+
+// Returns all training goals from the lookup table.
 function trainingszieleAbrufen($verbindung)
 {
     return $verbindung->query(
@@ -98,8 +101,7 @@ function trainingszieleAbrufen($verbindung)
     )->fetchAll(PDO::FETCH_COLUMN);
 }
 
-// Speichert ein neues Training für einen Fahrer
-// Pro Fahrer nur ein Training pro Tag (DB-Constraint über PK Datum+FahrerID)
+// Inserts a training session; DB enforces one entry per driver per day via primary key.
 function trainingErfassen($verbindung, $fahrerID, $teamName, $datum, $gefahreneKM, $trainingsziel)
 {
     $stmt = $verbindung->prepare(
@@ -109,7 +111,9 @@ function trainingErfassen($verbindung, $fahrerID, $teamName, $datum, $gefahreneK
     $stmt->execute([$fahrerID, $teamName, $datum, $gefahreneKM, $trainingsziel]);
 }
 
-// Lädt alle angemeldeten Fahrer des Teams je zukünftigem Rennen; gibt Map RennID → [FahrerName] zurück
+// ── Race registrations ────────────────────────────────────
+
+// Returns a map of RaceID → ["Name (Nr. X)", ...] for all upcoming races this team is registered in.
 function angemeldteFahrerProRennen($verbindung, $teamName)
 {
     $stmt = $verbindung->prepare(
@@ -127,4 +131,3 @@ function angemeldteFahrerProRennen($verbindung, $teamName)
     }
     return $map;
 }
-

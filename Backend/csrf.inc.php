@@ -1,5 +1,6 @@
 <?php
-// Gibt den CSRF-Token der aktuellen Session zurück (erstellt ihn bei Bedarf)
+// Autor: Sebastian Rieg
+// Returns the CSRF token for the current session, generating one if needed.
 function csrfToken(): string
 {
     if (empty($_SESSION['csrf_token'])) {
@@ -8,7 +9,7 @@ function csrfToken(): string
     return $_SESSION['csrf_token'];
 }
 
-// Prüft den CSRF-Token aus dem POST-Request; bricht mit 403 ab bei Fehler
+// Validates the CSRF token from the POST request; responds with 403 on failure.
 function csrfPruefen(): void
 {
     $token = $_POST['csrf_token'] ?? '';

@@ -1,6 +1,8 @@
 <?php
 // Autor: Marlies Achterholt
-// Prüft ob ein Veranstalter bereits existiert
+// ── Organizer (Rennveranstalter) ──────────────────────────
+
+// Returns true if an organizer with this name already exists.
 function veranstalterExistiert($verbindung, $veranstalterName)
 {
     $stmt = $verbindung->prepare(
@@ -10,7 +12,7 @@ function veranstalterExistiert($verbindung, $veranstalterName)
     return $stmt->rowCount() > 0;
 }
 
-// Registriert einen neuen Rennveranstalter
+// Registers a new organizer with a bcrypt-hashed password.
 function veranstalterRegistrieren($verbindung, $veranstalterName, $kennwort)
 {
     $kennwortHash = password_hash($kennwort, PASSWORD_DEFAULT);
@@ -21,7 +23,7 @@ function veranstalterRegistrieren($verbindung, $veranstalterName, $kennwort)
     $stmt->execute([$veranstalterName, $kennwortHash]);
 }
 
-// Prüft Login – gibt true zurück bei Erfolg
+// Verifies login credentials; returns true on success.
 function veranstalterLogin($verbindung, $veranstalterName, $kennwort)
 {
     $stmt = $verbindung->prepare(
@@ -34,11 +36,9 @@ function veranstalterLogin($verbindung, $veranstalterName, $kennwort)
     return password_verify($kennwort, $zeile['Kennwort']);
 }
 
-// ─────────────────────────────────────────
-// RENNEN
-// ─────────────────────────────────────────
+// ── Races (Rennen) ────────────────────────────────────────
 
-// Löscht ein Rennen samt aller nimmtTeil-Einträge (nur eigene Rennen des Veranstalters)
+// Deletes a race and all its registrations in a single transaction.
 function rennLoeschen($verbindung, $rennID, $veranstalterName)
 {
     $verbindung->beginTransaction();
@@ -60,7 +60,7 @@ function rennLoeschen($verbindung, $rennID, $veranstalterName)
     }
 }
 
-// Legt ein neues Rennen an; RennID wird manuell berechnet (kein AUTO_INCREMENT)
+// Inserts a new race; RaceID is computed manually (no AUTO_INCREMENT on this table).
 function rennAnlegen($verbindung, $veranstalterName, $datum, $startort, $streckenKM, $hoehenmeter, $maxSteigung)
 {
     $ergebnis   = $verbindung->query("SELECT COALESCE(MAX(RennID), 0) + 1 FROM Rennen");
@@ -73,7 +73,7 @@ function rennAnlegen($verbindung, $veranstalterName, $datum, $startort, $strecke
     return $naechsteID;
 }
 
-// Lädt alle Rennen
+// Returns all races ordered by date descending.
 function rennenLaden($verbindung)
 {
     return $verbindung->query(
@@ -82,7 +82,7 @@ function rennenLaden($verbindung)
     )->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Lädt nur zukünftige Rennen (für Fahreranmeldung)
+// Returns only future races ordered by date ascending.
 function rennenLadenZukunft($verbindung)
 {
     return $verbindung->query(
@@ -91,7 +91,7 @@ function rennenLadenZukunft($verbindung)
     )->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Lädt ein einzelnes Rennen anhand der RennID
+// Returns a single race by RaceID, or false if not found.
 function rennenLadenEinzeln($verbindung, $rennID)
 {
     $stmt = $verbindung->prepare(
@@ -102,11 +102,9 @@ function rennenLadenEinzeln($verbindung, $rennID)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-// ─────────────────────────────────────────
-// ERGEBNISSE
-// ─────────────────────────────────────────
+// ── Results (Ergebnisse) ──────────────────────────────────
 
-// Lädt alle Fahrer eines Rennens inkl. bereits gespeicherter Ergebnisse
+// Returns all registered drivers for a race with their current results, ordered by start number.
 function fahrerZuRennenLaden($verbindung, $rennID)
 {
     $stmt = $verbindung->prepare(
@@ -121,7 +119,7 @@ function fahrerZuRennenLaden($verbindung, $rennID)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Lädt die Ergebnisse eines Rennens, sortiert nach Platzierung
+// Returns race results ordered by placement.
 function ergebnisseLaden($verbindung, $rennID)
 {
     $stmt = $verbindung->prepare(
@@ -136,14 +134,14 @@ function ergebnisseLaden($verbindung, $rennID)
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Speichert das Ergebnis eines Fahrers – einmaliger Vorgang, kein UPDATE
+// Writes a result for one driver; only updates rows where no result has been saved yet.
 function ergebnisSpeichern($verbindung, $rennID, $fahrerID, $teamName, $platzierung, $gefahreneZeit)
 {
     $stmt = $verbindung->prepare(
-        "UPDATE nimmtTeil 
+        "UPDATE nimmtTeil
          SET Platzierung = ?, gefahreneZeit = ?
          WHERE RennID = ? AND FahrerID = ? AND TeamName = ?
-         AND Platzierung IS NULL"  // Sicherheit: nur wenn noch kein Ergebnis
+         AND Platzierung IS NULL"
     );
     $stmt->execute([$platzierung, $gefahreneZeit, $rennID, $fahrerID, $teamName]);
 }

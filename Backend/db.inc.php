@@ -1,9 +1,10 @@
 <?php
-// Autor: Rieg
+// Autor: Sebastian Rieg
+// Opens the shared PDO connection ($verbindung); terminates with an error message on failure.
 $username = "gruppe6";
 $password = "3J8+dNy8i3#u";
-$host = "92.205.168.232"; // funktioniert zuverlässiger als mit "localhost"
-$db_name = "gruppe6";
+$host     = "92.205.168.232";
+$db_name  = "gruppe6";
 $serverdaten = "mysql:host=$host;dbname=$db_name;charset=utf8";
 
 try {
